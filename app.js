@@ -3,28 +3,31 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 
-// Middleware ustawiający nagłówek CORS
+
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // Zmień to na swoją domenę React
+  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
   res.setHeader('Access-Control-Allow-Credentials', true);
   next();
 });
 
-// Parsowanie danych przesłanych w formacie JSON
 app.use(bodyParser.json());
 
-// Inne ścieżki i obsługa routingu
+
 app.get('/api/getdata', (req, res) => {
-  // Kod obsługi żądania
   res.json({ message: 'Dane z serwera' });
 });
 
 app.post('/api/sendtext', (req, res) => {
-    const receivedText = req.body.text; // Odebrany tekst
+    const receivedText = req.body.text; 
     console.log('Odebrany tekst:', receivedText);
-    res.json({ message: 'Tekst został odebrany przez serwer.' });
+    if(receivedText === "cos"){
+      res.json({ message: 'Test dziala'});
+    }
+    else{
+      res.json({ message: 'Tekst został odebrany przez serwer. Rozny od "cos"' });
+    }
 });
 
 // Uruchomienie serwera
