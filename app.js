@@ -7,6 +7,7 @@ const mysql = require('mysql');``
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); 
+  res.setHeader("Content-Security-Policy", "connect-src 'self' http://localhost");
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -32,23 +33,24 @@ app.get('/api/sendtext', (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
-
-  const [username, password] = req.body.json();
-
+  const { username, password } = req.body;
   console.log(`Username or email: ${username}`);
   console.log(`Password: ${password}`);
-
+  res.send({ success: true });
 });
+
+
 
 app.post('/api/register', (req, res) => {
 
-  const [email,username,password,repeatPassword] = req.body.json();
+  const {email,username,password,repeatPassword} = req.body;
 
   console.log(`Email: ${email}`);
   console.log(`Username: ${username}`);
   console.log(`Password: ${password}`);
   console.log(`Repeat Password: ${repeatPassword}`);
 
+  res.send({ success: true });
 
 });
 
