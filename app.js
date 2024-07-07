@@ -37,6 +37,10 @@ app.post('/api/login', (req, res) => {
   console.log(`Username or email: ${username}`);
   console.log(`Password: ${password}`);
   res.send({ success: true });
+
+  
+
+
 });
 
 
@@ -44,13 +48,55 @@ app.post('/api/login', (req, res) => {
 app.post('/api/register', (req, res) => {
 
   const {email,username,password,repeatPassword} = req.body;
+  const invalidCharacters = [",","'","!","&","#",";",":","|"];
+  let emptyFields = false;
+  let invalidValues = false;
+  let passwordsDoesntMatch = false;
+
+
+  function validate(textToValidate) {
+    
+    let isOk = true;
+
+    invalidCharacters.forEach(charackter =>{
+        if(textToValidate.includes(charackter)){
+          isOk = false;
+        }
+    });
+    
+    return isOk;
+
+  }
 
   console.log(`Email: ${email}`);
   console.log(`Username: ${username}`);
   console.log(`Password: ${password}`);
   console.log(`Repeat Password: ${repeatPassword}`);
 
-  res.send({ success: true });
+  if(email.length == 0 || username.length == 0 || password.length == 0  || repeatPassword.length == 0){
+    emptyFields = true;
+  }
+
+  if(!validate(email) || !validate(username) || !validate(password) || !validate(repeatPassword)){
+    invalidValues = true;
+  }
+  
+  if(password != repeatPassword){
+    passwordsDoesntMatch = true;
+  }
+
+  
+  if(emptyFields){
+    return res.send({ error: "Fill in all fields"});
+  }
+  if(invalidValues){
+    return res.send({ error : "Invalid characters" });
+  }
+  if(passwordsDoesntMatch){
+    return res.send({ error: "Passwords do not match"});
+  }
+  
+  res.send({ successs: true });
 
 });
 
