@@ -2,6 +2,7 @@
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const mysql = require('mysql');``
 
 
 app.use((req, res, next) => {
@@ -19,7 +20,7 @@ app.get('/api/getdata', (req, res) => {
   res.json({ message: 'Dane z serwera' });
 });
 
-app.post('/api/sendtext', (req, res) => {
+app.get('/api/sendtext', (req, res) => {
     const receivedText = req.body.text; 
     console.log('Odebrany tekst:', receivedText);
     if(receivedText === "cos"){
@@ -29,6 +30,28 @@ app.post('/api/sendtext', (req, res) => {
       res.json({ message: 'Tekst został odebrany przez serwer. Rozny od "cos"' });
     }
 });
+
+app.post('/api/login', (req, res) => {
+
+  const [username, password] = req.body.json();
+
+  console.log(`Username or email: ${username}`);
+  console.log(`Password: ${password}`);
+
+});
+
+app.post('/api/register', (req, res) => {
+
+  const [email,username,password,repeatPassword] = req.body.json();
+
+  console.log(`Email: ${email}`);
+  console.log(`Username: ${username}`);
+  console.log(`Password: ${password}`);
+  console.log(`Repeat Password: ${repeatPassword}`);
+
+
+});
+
 
 // Uruchomienie serwera
 const PORT = process.env.PORT || 4000;
