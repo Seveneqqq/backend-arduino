@@ -4,6 +4,16 @@ const app = express();
 const bodyParser = require('body-parser');
 const mysql = require('mysql');``
 
+var conn = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "arduino_home"
+});
+
+conn.connect(function(err) {
+  if (err) throw err;
+});
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); 
@@ -33,16 +43,23 @@ app.get('/api/sendtext', (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  console.log(`Username or email: ${username}`);
-  console.log(`Password: ${password}`);
-  res.send({ success: true });
 
+  const { login,password } = req.body;
+
+    conn.query(`select * from users where (login = '${login}' or email = '${login}') and password = '${password}'`, function(err,result,fields){
+      
+      if(result.length == 1){
+        return res.send({ message: `Hello ${login}`});
+      }
+      else{
+        return res.send({ error: 'User does not exist'});
+      }
+    });
+
+  });
   
 
-
-});
-
+ 
 
 
 app.post('/api/register', (req, res) => {
@@ -52,7 +69,6 @@ app.post('/api/register', (req, res) => {
   let emptyFields = false;
   let invalidValues = false;
   let passwordsDoesntMatch = false;
-
 
   function validate(textToValidate) {
     
