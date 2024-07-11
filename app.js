@@ -2,7 +2,7 @@
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
-const mysql = require('mysql');``
+const mysql = require('mysql');
 
 var conn = mysql.createConnection({
   host: "localhost",
@@ -26,22 +26,6 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json());
 
-
-app.get('/api/getdata', (req, res) => {
-  res.json({ message: 'Dane z serwera' });
-});
-
-app.get('/api/sendtext', (req, res) => {
-    const receivedText = req.body.text; 
-    console.log('Odebrany tekst:', receivedText);
-    if(receivedText === "cos"){
-      res.json({ message: 'Test dziala'});
-    }
-    else{
-      res.json({ message: 'Tekst został odebrany przez serwer. Rozny od "cos"' });
-    }
-});
-
 app.post('/api/login', (req, res) => {
 
   const { login,password } = req.body;
@@ -52,15 +36,19 @@ app.post('/api/login', (req, res) => {
         return res.send({ message: `Hello ${login}`});
       }
       else{
-        return res.send({ error: 'User does not exist'});
+        return res.send({ error: 'User does not exist or password is incorrect'});
       }
     });
 
   });
   
 
- 
+app.post('/api/command', (req, res) => {
 
+  const {command,value} = req.body;
+
+
+});
 
 app.post('/api/register', (req, res) => {
 
@@ -84,10 +72,10 @@ app.post('/api/register', (req, res) => {
 
   }
 
-  console.log(`Email: ${email}`);
-  console.log(`Username: ${username}`);
-  console.log(`Password: ${password}`);
-  console.log(`Repeat Password: ${repeatPassword}`);
+  // console.log(`Email: ${email}`);
+  // console.log(`Username: ${username}`);
+  // console.log(`Password: ${password}`);
+  // console.log(`Repeat Password: ${repeatPassword}`);
 
   if(email.length == 0 || username.length == 0 || password.length == 0  || repeatPassword.length == 0){
     emptyFields = true;
@@ -112,7 +100,14 @@ app.post('/api/register', (req, res) => {
     return res.send({ error: "Passwords do not match"});
   }
   
-  res.send({ successs: true });
+  
+  conn.query("INSERT INTO users (login, email, password) VALUES (?,?,?)", [username,email,password], function(err,result){
+    if (err) throw err;
+    console.log(result);
+    res.send({ successs: 'Success, user created' });
+  });
+
+  
 
 });
 
@@ -124,6 +119,22 @@ app.listen(PORT, () => {
 });
 
 
+
+
+// app.get('/api/getdata', (req, res) => {
+//   res.json({ message: 'Dane z serwera' });
+// });
+
+// app.get('/api/sendtext', (req, res) => {
+//     const receivedText = req.body.text; 
+//     console.log('Odebrany tekst:', receivedText);
+//     if(receivedText === "cos"){
+//       res.json({ message: 'Test dziala'});
+//     }
+//     else{
+//       res.json({ message: 'Tekst został odebrany przez serwer. Rozny od "cos"' });
+//     }
+// });
 
 
 
