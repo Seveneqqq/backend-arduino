@@ -33,7 +33,7 @@ app.post('/api/login', (req, res) => {
     conn.query(`select * from users where (login = '${login}' or email = '${login}') and password = '${password}'`, function(err,result,fields){
       
       if(result.length == 1){
-        return res.send({ message: `Hello ${login}`});
+        return res.send({ success: `Hello ${login}`});
       }
       else{
         return res.send({ error: 'User does not exist or password is incorrect'});
@@ -88,7 +88,6 @@ app.post('/api/register', (req, res) => {
   if(password != repeatPassword){
     passwordsDoesntMatch = true;
   }
-
   
   if(emptyFields){
     return res.send({ error: "Fill in all fields"});
@@ -100,14 +99,11 @@ app.post('/api/register', (req, res) => {
     return res.send({ error: "Passwords do not match"});
   }
   
-  
   conn.query("INSERT INTO users (login, email, password) VALUES (?,?,?)", [username,email,password], function(err,result){
     if (err) throw err;
     console.log(result);
-    res.send({ successs: 'Success, user created' });
+    res.send({ success: 'Success, user created' });
   });
-
-  
 
 });
 
