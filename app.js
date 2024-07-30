@@ -2,11 +2,22 @@
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
-const mysql = require('mysql');``
+const mysql = require('mysql');
 
+var conn = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "arduino_home"
+});
+
+conn.connect(function(err) {
+  if (err) throw err;
+});
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); 
+  res.setHeader("Content-Security-Policy", "connect-src 'self' http://localhost");
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -15,40 +26,84 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json());
 
-
-app.get('/api/getdata', (req, res) => {
-  res.json({ message: 'Dane z serwera' });
-});
-
-app.get('/api/sendtext', (req, res) => {
-    const receivedText = req.body.text; 
-    console.log('Odebrany tekst:', receivedText);
-    if(receivedText === "cos"){
-      res.json({ message: 'Test dziala'});
-    }
-    else{
-      res.json({ message: 'Tekst został odebrany przez serwer. Rozny od "cos"' });
-    }
-});
-
 app.post('/api/login', (req, res) => {
 
-  const [username, password] = req.body.json();
+  const { login,password } = req.body;
 
-  console.log(`Username or email: ${username}`);
-  console.log(`Password: ${password}`);
+    conn.query(`select * from users where (login = '${login}' or email = '${login}') and password = '${password}'`, function(err,result,fields){
+      
+      if(result.length == 1){
+        return res.send({ success: `Hello ${login}`});
+      }
+      else{
+        return res.send({ error: 'User does not exist or password is incorrect'});
+      }
+    });
+
+  });
+  
+
+app.post('/api/command', (req, res) => {
+
+  const {command,value} = req.body;
+
 
 });
 
 app.post('/api/register', (req, res) => {
 
-  const [email,username,password,repeatPassword] = req.body.json();
+  const {email,username,password,repeatPassword} = req.body;
+  const invalidCharacters = [",","'","!","&","#",";",":","|"];
+  let emptyFields = false;
+  let invalidValues = false;
+  let passwordsDoesntMatch = false;
 
-  console.log(`Email: ${email}`);
-  console.log(`Username: ${username}`);
-  console.log(`Password: ${password}`);
-  console.log(`Repeat Password: ${repeatPassword}`);
+  function validate(textToValidate) {
+    
+    let isOk = true;
 
+    invalidCharacters.forEach(charackter =>{
+        if(textToValidate.includes(charackter)){
+          isOk = false;
+        }
+    });
+    
+    return isOk;
+
+  }
+
+  // console.log(`Email: ${email}`);
+  // console.log(`Username: ${username}`);
+  // console.log(`Password: ${password}`);
+  // console.log(`Repeat Password: ${repeatPassword}`);
+
+  if(email.length == 0 || username.length == 0 || password.length == 0  || repeatPassword.length == 0){
+    emptyFields = true;
+  }
+
+  if(!validate(email) || !validate(username) || !validate(password) || !validate(repeatPassword)){
+    invalidValues = true;
+  }
+  
+  if(password != repeatPassword){
+    passwordsDoesntMatch = true;
+  }
+  
+  if(emptyFields){
+    return res.send({ error: "Fill in all fields"});
+  }
+  if(invalidValues){
+    return res.send({ error : "Invalid characters" });
+  }
+  if(passwordsDoesntMatch){
+    return res.send({ error: "Passwords do not match"});
+  }
+  
+  conn.query("INSERT INTO users (login, email, password) VALUES (?,?,?)", [username,email,password], function(err,result){
+    if (err) throw err;
+    console.log(result);
+    res.send({ success: 'Success, user created' });
+  });
 
 });
 
@@ -60,6 +115,22 @@ app.listen(PORT, () => {
 });
 
 
+
+
+// app.get('/api/getdata', (req, res) => {
+//   res.json({ message: 'Dane z serwera' });
+// });
+
+// app.get('/api/sendtext', (req, res) => {
+//     const receivedText = req.body.text; 
+//     console.log('Odebrany tekst:', receivedText);
+//     if(receivedText === "cos"){
+//       res.json({ message: 'Test dziala'});
+//     }
+//     else{
+//       res.json({ message: 'Tekst został odebrany przez serwer. Rozny od "cos"' });
+//     }
+// });
 
 
 
