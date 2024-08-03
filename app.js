@@ -40,8 +40,82 @@ app.post('/api/login', (req, res) => {
       }
     });
 
-  });
+});
   
+app.post('/api/register', (req, res) => {
+
+    const {email,username,password,repeatPassword} = req.body;
+    const invalidCharacters = [",","'","!","&","#",";",":","|"];
+    let emptyFields = false;
+    let invalidValues = false;
+    let passwordsDoesntMatch = false;
+  
+    function validate(textToValidate) {
+      
+      let isOk = true;
+  
+      invalidCharacters.forEach(charackter =>{
+          if(textToValidate.includes(charackter)){
+            isOk = false;
+          }
+      });
+      
+      return isOk;
+  
+    }
+  
+    // console.log(`Email: ${email}`);
+    // console.log(`Username: ${username}`);
+    // console.log(`Password: ${password}`);
+    // console.log(`Repeat Password: ${repeatPassword}`);
+  
+    if(email.length == 0 || username.length == 0 || password.length == 0  || repeatPassword.length == 0){
+      emptyFields = true;
+    }
+  
+    if(!validate(email) || !validate(username) || !validate(password) || !validate(repeatPassword)){
+      invalidValues = true;
+    }
+    
+    if(password != repeatPassword){
+      passwordsDoesntMatch = true;
+    }
+    
+    if(emptyFields){
+      return res.send({ error: "Fill in all fields"});
+    }
+    if(invalidValues){
+      return res.send({ error : "Invalid characters" });
+    }
+    if(passwordsDoesntMatch){
+      return res.send({ error: "Passwords do not match"});
+    }
+    
+    try{
+      conn.query("INSERT INTO users (login, email, password) VALUES (?,?,?)", [username,email,password], function(err,result){
+          if (err){
+            if (err.code === 'ER_DUP_ENTRY') {
+              return res.status(409).send({ error: 'Username or email already exists' });
+            } else {
+              console.log("Error: ", err);
+              return res.status(500).send({ error: 'Database error' });
+            }
+          }
+        console.log(result);
+        res.send({ success: 'Success, user created' });
+      });
+    }
+    catch (error) {
+
+      console.log("Error : " +error);
+      res.send({'error': error});
+    }
+
+});
+
+
+
+
 
 app.post('/api/command', (req, res) => {
 
@@ -50,62 +124,7 @@ app.post('/api/command', (req, res) => {
 
 });
 
-app.post('/api/register', (req, res) => {
 
-  const {email,username,password,repeatPassword} = req.body;
-  const invalidCharacters = [",","'","!","&","#",";",":","|"];
-  let emptyFields = false;
-  let invalidValues = false;
-  let passwordsDoesntMatch = false;
-
-  function validate(textToValidate) {
-    
-    let isOk = true;
-
-    invalidCharacters.forEach(charackter =>{
-        if(textToValidate.includes(charackter)){
-          isOk = false;
-        }
-    });
-    
-    return isOk;
-
-  }
-
-  // console.log(`Email: ${email}`);
-  // console.log(`Username: ${username}`);
-  // console.log(`Password: ${password}`);
-  // console.log(`Repeat Password: ${repeatPassword}`);
-
-  if(email.length == 0 || username.length == 0 || password.length == 0  || repeatPassword.length == 0){
-    emptyFields = true;
-  }
-
-  if(!validate(email) || !validate(username) || !validate(password) || !validate(repeatPassword)){
-    invalidValues = true;
-  }
-  
-  if(password != repeatPassword){
-    passwordsDoesntMatch = true;
-  }
-  
-  if(emptyFields){
-    return res.send({ error: "Fill in all fields"});
-  }
-  if(invalidValues){
-    return res.send({ error : "Invalid characters" });
-  }
-  if(passwordsDoesntMatch){
-    return res.send({ error: "Passwords do not match"});
-  }
-  
-  conn.query("INSERT INTO users (login, email, password) VALUES (?,?,?)", [username,email,password], function(err,result){
-    if (err) throw err;
-    console.log(result);
-    res.send({ success: 'Success, user created' });
-  });
-
-});
 
 
 // Uruchomienie serwera
