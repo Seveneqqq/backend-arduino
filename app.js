@@ -24,7 +24,6 @@ function authenticateToken(req, res, next) {
   });
 }
 
-
 var conn = mysql.createConnection({
   host: "localhost",
   user: "root",
@@ -150,29 +149,6 @@ app.post('/api/register', (req, res) => {
 
 });
 
-
-
-app.get('/api/devices', authenticateToken, (req,res) => {
-
-  res.send({success: 'dziala'});
-
-});
-app.get('/api/rooms', authenticateToken, (req,res) => {
-
-});
-
-
-app.get('/api/users', authenticateToken, (req,res) => {
-
-  const {id_domu} = req.body;
-
-  conn.query(`SELECT * FROM users where id_domu = ${id_domu}`, function (err,results,fields){
-    
-    //dokonczyc
-
-  });
-});
-
 app.post('/api/new-home', authenticateToken, (req,res) =>{
   
   const {userId,homeName} = req.body;
@@ -185,12 +161,36 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
       console.error(error);
       res.send({ error: error});
   }
-  
-  
+});
+
+// na froncie zapisywanie w stanie reacta danych, a nastepnie po skonczeniu dodawnaia i konfiguracji nastepuje wywolanie kolejnych end-pointow 
+
+app.post('/api/join-to-home', authenticateToken, (req,res) =>{
+  const {user_id, home_invite_code} = req.body;
+});
+
+app.get('/api/devices', authenticateToken, (req,res) => {
+
+  res.send({success: 'dziala'});
 
 });
 
-app.post('/api/newDevice', authenticateToken, (req,res) => {
+app.get('/api/rooms', authenticateToken, (req,res) => {
+
+});
+
+app.get('/api/users', authenticateToken, (req,res) => {
+
+  const {id_domu} = req.body;
+
+  conn.query(`SELECT * FROM users where id_domu = ${id_domu}`, function (err,results,fields){
+    
+    //dokonczyc
+
+  });
+});
+
+app.post('/api/new-device', authenticateToken, (req,res) => {
 
 });
 
@@ -201,7 +201,6 @@ app.get('/api/scenarios', authenticateToken, (req,res) => {
 app.post('/api/command', authenticateToken, (req, res) => {
 
   const {command,value} = req.body;
-
 
 });
 
