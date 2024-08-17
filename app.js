@@ -1,4 +1,3 @@
-
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -128,7 +127,7 @@ app.post('/api/register', (req, res) => {
 
         console.log(result);
 
-        const token = jwt.sign({ id: user.id, login: user.login }, secretKey, { expiresIn: '1h' });
+        const token = jwt.sign({ id: result.id, login: result.login }, secretKey, { expiresIn: '1h' });
 
         res.send({ success: 'Success, user created', token: token });
       });
