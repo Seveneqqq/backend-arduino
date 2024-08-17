@@ -3,6 +3,28 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+const secretKey = process.env.JWT_SECRET;
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token == null) return res.sendStatus(401); 
+
+  jwt.verify(token, secretKey, (err, user) => {
+    
+    if (err){
+      return res.sendStatus(403);
+    } 
+
+    req.user = user;
+    next();
+  });
+}
+
 
 var conn = mysql.createConnection({
   host: "localhost",
@@ -32,8 +54,10 @@ app.post('/api/login', (req, res) => {
 
     conn.query(`select * from users where (login = '${login}' or email = '${login}') and password = '${password}'`, function(err,result,fields){
       
+
       if(result.length == 1){
-        return res.send({ success: `Hello ${login}`});
+        const token = jwt.sign({ id: result.id, login: result.login }, secretKey, { expiresIn: '1h' });
+        return res.send({ success: `Hello ${login}`, token: token });
       }
       else{
         return res.send({ error: 'User does not exist or password is incorrect'});
@@ -101,8 +125,12 @@ app.post('/api/register', (req, res) => {
               return res.status(500).send({ error: 'Database error' });
             }
           }
+
         console.log(result);
-        res.send({ success: 'Success, user created' });
+
+        const token = jwt.sign({ id: user.id, login: user.login }, secretKey, { expiresIn: '1h' });
+
+        res.send({ success: 'Success, user created', token: token });
       });
     }
     catch (error) {
@@ -114,10 +142,44 @@ app.post('/api/register', (req, res) => {
 });
 
 
+app.get('/api/devices', authenticateToken, (req,res) => {
+
+  res.send({success: 'dziala'});
+
+});
+app.get('/api/rooms', authenticateToken, (req,res) => {
+
+});
 
 
+app.get('/api/users', authenticateToken, (req,res) => {
 
-app.post('/api/command', (req, res) => {
+  const {id_domu} = req.body;
+
+  conn.query(`SELECT * FROM users where id_domu = ${id_domu}`, function (err,results,fields){
+    
+    //dokonczyc
+
+  });
+});
+
+app.post('/api/newHome', authenticateToken, (req,res) =>{
+  
+  const {userId} = req.body;
+
+  //insert into db nowy dom where owner is 'userId'
+
+});
+
+app.post('/api/newDevice', authenticateToken, (req,res) => {
+
+});
+
+app.get('/api/scenarios', authenticateToken, (req,res) => {
+
+});
+
+app.post('/api/command', authenticateToken, (req, res) => {
 
   const {command,value} = req.body;
 
