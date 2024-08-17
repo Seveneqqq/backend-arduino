@@ -51,17 +51,28 @@ app.post('/api/login', (req, res) => {
 
   const { login,password } = req.body;
 
+  try {
+    
+  
     conn.query(`select * from users where (login = '${login}' or email = '${login}') and password = '${password}'`, function(err,result,fields){
+      
       
 
       if(result.length == 1){
-        const token = jwt.sign({ id: result.id, login: result.login }, secretKey, { expiresIn: '1h' });
-        return res.send({ success: `Hello ${login}`, token: token });
+        const token = jwt.sign({ id: result[0].id, login: result[0].login }, secretKey, { expiresIn: '1h' });
+        
+        return res.send({ success: `Hello ${login}`, token: token, user: result[0].id});
       }
       else{
         return res.send({ error: 'User does not exist or password is incorrect'});
       }
     });
+  } catch (error) {
+    
+      console.log("Error : " +error);
+      res.send({'error': error});
+
+  }
 
 });
   
@@ -127,9 +138,8 @@ app.post('/api/register', (req, res) => {
 
         console.log(result);
 
-        const token = jwt.sign({ id: result.id, login: result.login }, secretKey, { expiresIn: '1h' });
-
-        res.send({ success: 'Success, user created', token: token });
+        const token = jwt.sign({ id: result[0].id, login: result[0].login }, secretKey, { expiresIn: '1h' });
+        res.send({ success: 'Success, user created', token: token, user: result[0].id });
       });
     }
     catch (error) {
@@ -139,6 +149,7 @@ app.post('/api/register', (req, res) => {
     }
 
 });
+
 
 
 app.get('/api/devices', authenticateToken, (req,res) => {
@@ -162,11 +173,20 @@ app.get('/api/users', authenticateToken, (req,res) => {
   });
 });
 
-app.post('/api/newHome', authenticateToken, (req,res) =>{
+app.post('/api/new-home', authenticateToken, (req,res) =>{
   
-  const {userId} = req.body;
+  const {userId,homeName} = req.body;
 
-  //insert into db nowy dom where owner is 'userId'
+  try {
+      conn.query(`INSERT INTO home (home_id, name, owner_id, home_invite_code) VALUES ('','${homeName}',${userId},'')`); 
+      res.send({ success: `New home created : ${homeName}`});
+  } 
+  catch (error) {
+      console.error(error);
+      res.send({ error: error});
+  }
+  
+  
 
 });
 
