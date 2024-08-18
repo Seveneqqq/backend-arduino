@@ -52,11 +52,8 @@ app.post('/api/login', (req, res) => {
 
   try {
     
-  
     conn.query(`select * from users where (login = '${login}' or email = '${login}') and password = '${password}'`, function(err,result,fields){
       
-      
-
       if(result.length == 1){
         const token = jwt.sign({ id: result[0].id, login: result[0].login }, secretKey, { expiresIn: '1h' });
         
@@ -72,6 +69,10 @@ app.post('/api/login', (req, res) => {
       res.send({'error': error});
 
   }
+
+  
+
+
 
 });
   
@@ -141,6 +142,7 @@ app.post('/api/register', (req, res) => {
         res.send({ success: 'Success, user created', token: token, user: result[0].id });
       });
     }
+
     catch (error) {
 
       console.log("Error : " +error);
@@ -161,13 +163,13 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
       console.error(error);
       res.send({ error: error});
   }
-});
+}); // tutaj ma byc zwracane id domu i jako parametr w body id_uzytkownika zalogownego aby dodac go do users_home
 
 // na froncie zapisywanie w stanie reacta danych, a nastepnie po skonczeniu dodawnaia i konfiguracji nastepuje wywolanie kolejnych end-pointow 
 
 app.post('/api/join-to-home', authenticateToken, (req,res) =>{
   const {user_id, home_invite_code} = req.body;
-});
+}); // tutaj ma byc zwracane id domu po kodzie dolaczenia i jako parametr w body id_uzytkownika zalogownego aby dodac go do users_home
 
 app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
@@ -192,7 +194,7 @@ app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
   
 
-});
+}); 
 
 app.get('/api/rooms', authenticateToken, (req,res) => {
 
