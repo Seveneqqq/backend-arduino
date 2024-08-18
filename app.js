@@ -169,9 +169,28 @@ app.post('/api/join-to-home', authenticateToken, (req,res) =>{
   const {user_id, home_invite_code} = req.body;
 });
 
-app.get('/api/devices', authenticateToken, (req,res) => {
+app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
-  res.send({success: 'dziala'});
+  const home_id =  1;
+  const room_id = req.body.room_id ? req.body.room_id : 'NULL';
+  const devices = req.body.devices;
+
+  try {
+    
+    devices.forEach(el=>{
+
+      conn.query(`insert into devices (device_id, name, home_id, room_id) values ('','${el.name}', ${home_id},${room_id})`);
+
+    });
+
+    res.send({success: 'Dodano nowe urządzenia'});
+
+  } catch (error) {
+    console.log(error);
+    res.send({error: error});
+  }
+
+  
 
 });
 
