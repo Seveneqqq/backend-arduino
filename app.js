@@ -169,7 +169,7 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
       console.error(error);
       res.send({ error: error});
   }
-}); // tutaj ma byc zwracane id domu i jako parametr w body id_uzytkownika zalogownego aby dodac go do users_home
+});
 
 // na froncie zapisywanie w stanie reacta danych, a nastepnie po skonczeniu dodawnaia i konfiguracji nastepuje wywolanie kolejnych end-pointow 
 
