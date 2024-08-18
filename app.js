@@ -156,8 +156,14 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
   const {userId,homeName} = req.body;
 
   try {
-      conn.query(`INSERT INTO home (home_id, name, owner_id, home_invite_code) VALUES ('','${homeName}',${userId},'')`); 
-      res.send({ success: `New home created : ${homeName}`});
+
+    conn.query(`INSERT INTO home (home_id, name, owner_id, home_invite_code) VALUES ('','${homeName}',${userId},'')`, function(err,result,fields){
+      
+        const homeId = result.insertId;
+        console.log(homeId);
+        return res.send({ success: `New home created : ${homeName}`,home_id: homeId});
+
+    });  
   } 
   catch (error) {
       console.error(error);
@@ -191,14 +197,26 @@ app.post('/api/add-new-devices', authenticateToken, (req,res) => {
     console.log(error);
     res.send({error: error});
   }
-
   
-
 }); 
 
 app.get('/api/rooms', authenticateToken, (req,res) => {
 
+  const home_id = req.body.home_id;
+  const room_name = req.body.room_name;
+  
+  try {
+    
+    conn.query(`insert into rooms (room_id,room_name,house_id) values ('','${room_name}',${home_id})`);
+
+  } catch (error) {
+    console.log(error);
+    res.send({error: error});
+  }
+
 });
+
+
 
 app.get('/api/users', authenticateToken, (req,res) => {
 
@@ -209,10 +227,6 @@ app.get('/api/users', authenticateToken, (req,res) => {
     //dokonczyc
 
   });
-});
-
-app.post('/api/new-device', authenticateToken, (req,res) => {
-
 });
 
 app.get('/api/scenarios', authenticateToken, (req,res) => {
