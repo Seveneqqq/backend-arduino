@@ -171,7 +171,7 @@ app.post('/api/join-to-home', authenticateToken, (req,res) =>{
 
 app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
-  const home_id =  1;
+  const home_id =  req.body.home_id;
   const room_id = req.body.room_id ? req.body.room_id : 'NULL';
   const devices = req.body.devices;
 
