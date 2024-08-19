@@ -1,8 +1,28 @@
-
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+const secretKey = process.env.JWT_SECRET;
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token == null) return res.sendStatus(401); 
+
+  jwt.verify(token, secretKey, (err, user) => {
+    
+    if (err){
+      return res.sendStatus(403);
+    } 
+
+    req.user = user;
+    next();
+  });
+}
 
 var conn = mysql.createConnection({
   host: "localhost",
@@ -30,15 +50,29 @@ app.post('/api/login', (req, res) => {
 
   const { login,password } = req.body;
 
+  try {
+    
     conn.query(`select * from users where (login = '${login}' or email = '${login}') and password = '${password}'`, function(err,result,fields){
       
       if(result.length == 1){
-        return res.send({ success: `Hello ${login}`});
+        const token = jwt.sign({ id: result[0].id, login: result[0].login }, secretKey, { expiresIn: '1h' });
+        
+        return res.send({ success: `Hello ${login}`, token: token, user: result[0].id});
       }
       else{
         return res.send({ error: 'User does not exist or password is incorrect'});
       }
     });
+  } catch (error) {
+    
+      console.log("Error : " +error);
+      res.send({'error': error});
+
+  }
+
+  
+
+
 
 });
   
@@ -101,10 +135,14 @@ app.post('/api/register', (req, res) => {
               return res.status(500).send({ error: 'Database error' });
             }
           }
+
         console.log(result);
-        res.send({ success: 'Success, user created' });
+
+        const token = jwt.sign({ id: result[0].id, login: result[0].login }, secretKey, { expiresIn: '1h' });
+        res.send({ success: 'Success, user created', token: token, user: result[0].id });
       });
     }
+
     catch (error) {
 
       console.log("Error : " +error);
@@ -113,14 +151,91 @@ app.post('/api/register', (req, res) => {
 
 });
 
+app.post('/api/new-home', authenticateToken, (req,res) =>{
+  
+  const {userId,homeName} = req.body;
+
+  try {
+
+    conn.query(`INSERT INTO home (home_id, name, owner_id, home_invite_code) VALUES ('','${homeName}',${userId},'')`, function(err,result,fields){
+      
+        const homeId = result.insertId;
+        console.log(homeId);
+        return res.send({ success: `New home created : ${homeName}`,home_id: homeId});
+
+    });  
+  } 
+  catch (error) {
+      console.error(error);
+      res.send({ error: error});
+  }
+});
+
+// na froncie zapisywanie w stanie reacta danych, a nastepnie po skonczeniu dodawnaia i konfiguracji nastepuje wywolanie kolejnych end-pointow 
+
+app.post('/api/join-to-home', authenticateToken, (req,res) =>{
+  const {user_id, home_invite_code} = req.body;
+}); // tutaj ma byc zwracane id domu po kodzie dolaczenia i jako parametr w body id_uzytkownika zalogownego aby dodac go do users_home
+
+app.post('/api/add-new-devices', authenticateToken, (req,res) => {
+
+  const home_id =  req.body.home_id;
+  const room_id = req.body.room_id ? req.body.room_id : 'NULL';
+  const devices = req.body.devices;
+
+  try {
+    
+    devices.forEach(el=>{
+
+      conn.query(`insert into devices (device_id, name, home_id, room_id) values ('','${el.name}', ${home_id},${room_id})`);
+
+    });
+
+    res.send({success: 'Dodano nowe urządzenia'});
+
+  } catch (error) {
+    console.log(error);
+    res.send({error: error});
+  }
+  
+}); 
+
+app.get('/api/rooms', authenticateToken, (req,res) => {
+
+  const home_id = req.body.home_id;
+  const room_name = req.body.room_name;
+  
+  try {
+    
+    conn.query(`insert into rooms (room_id,room_name,house_id) values ('','${room_name}',${home_id})`);
+
+  } catch (error) {
+    console.log(error);
+    res.send({error: error});
+  }
+
+});
 
 
 
+app.get('/api/users', authenticateToken, (req,res) => {
 
-app.post('/api/command', (req, res) => {
+  const {id_domu} = req.body;
+
+  conn.query(`SELECT * FROM users where id_domu = ${id_domu}`, function (err,results,fields){
+    
+    //dokonczyc
+
+  });
+});
+
+app.get('/api/scenarios', authenticateToken, (req,res) => {
+
+});
+
+app.post('/api/command', authenticateToken, (req, res) => {
 
   const {command,value} = req.body;
-
 
 });
 
