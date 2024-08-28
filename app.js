@@ -16,6 +16,7 @@ function authenticateToken(req, res, next) {
   jwt.verify(token, secretKey, (err, user) => {
     
     if (err){
+      console.log(token);
       return res.sendStatus(403);
     } 
 
@@ -39,7 +40,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); 
   res.setHeader("Content-Security-Policy", "connect-src 'self' http://localhost");
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,Authorization');
   res.setHeader('Access-Control-Allow-Credentials', true);
   next();
 });
@@ -174,9 +175,11 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
 app.post('/api/join-to-home', authenticateToken, (req,res) =>{
   const {user_id, home_invite_code} = req.body;
 
+  
   res.send({ success:'ok' });
 
-  
+  //res.send({error:'error'});
+
 }); 
 
 app.post('/api/add-new-devices', authenticateToken, (req,res) => {
