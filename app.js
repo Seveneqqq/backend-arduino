@@ -185,25 +185,17 @@ app.post('/api/join-to-home', authenticateToken, (req,res) =>{
       conn.query(sql, function (err, result) {
         if (err) throw err;
         
-        console.log(result);
-
         let home_id = result[0].home_id;
-        console.log(home_id);
         let home_name = result.home_name;
 
         sql2 = `insert into users_home (id,user_id,home_id) value (null,${user_id},${home_id})`;
-        console.log(sql2);
         conn.query(sql2, function (err, result) {
-          if (err) throw err;
-
             console.log(`id: ${result.insertId}`);
+            return res.send({ success:'ok', home_name: home_name });
           });
         });
       
-      res.send({ success:'ok', home_name: home_name });
-
   } catch (error) {
-    
     res.send({error:'error'});
   }
 
