@@ -179,26 +179,35 @@ app.post('/api/join-to-home', authenticateToken, (req,res) =>{
   console.log(user_id);
   
   try {
-    
-    if(home_invite_code.length > 0 && user_id.length > 0){
-        
       
+      let sql = `select home_id,name from home where home_invite_code = '${home_invite_code}'`;
+     
+      conn.query(sql, function (err, result) {
+        if (err) throw err;
+        
+        console.log(result);
 
-      // `select home_id,name from home where home_invite_code = ${code}`;
+        let home_id = result[0].home_id;
+        console.log(home_id);
+        let home_name = result.home_name;
 
-      // let home_id,name;
+        sql2 = `insert into users_home (id,user_id,home_id) value (null,${user_id},${home_id})`;
+        console.log(sql2);
+        conn.query(sql2, function (err, result) {
+          if (err) throw err;
 
-      // `insert into users_home (id,user_id,home_id) value (null,${user_id},${home_id})`
-
-    }
+            console.log(`id: ${result.insertId}`);
+          });
+        });
+      
+      res.send({ success:'ok', home_name: home_name });
 
   } catch (error) {
+    
     res.send({error:'error'});
   }
 
-  res.send({ success:'ok' });
-
-  //res.send({error:'error'});
+ 
 
 }); 
 
