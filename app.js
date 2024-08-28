@@ -171,11 +171,13 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
   }
 });
 
-// na froncie zapisywanie w stanie reacta danych, a nastepnie po skonczeniu dodawnaia i konfiguracji nastepuje wywolanie kolejnych end-pointow 
-
 app.post('/api/join-to-home', authenticateToken, (req,res) =>{
   const {user_id, home_invite_code} = req.body;
-}); // tutaj ma byc zwracane id domu po kodzie dolaczenia i jako parametr w body id_uzytkownika zalogownego aby dodac go do users_home
+
+  res.send({ success:'ok' });
+
+  
+}); 
 
 app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
