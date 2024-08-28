@@ -175,7 +175,27 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
 app.post('/api/join-to-home', authenticateToken, (req,res) =>{
   const {user_id, home_invite_code} = req.body;
 
+  console.log(home_invite_code);
+  console.log(user_id);
   
+  try {
+    
+    if(home_invite_code.length > 0 && user_id.length > 0){
+        
+      
+
+      // `select home_id,name from home where home_invite_code = ${code}`;
+
+      // let home_id,name;
+
+      // `insert into users_home (id,user_id,home_id) value (null,${user_id},${home_id})`
+
+    }
+
+  } catch (error) {
+    res.send({error:'error'});
+  }
+
   res.send({ success:'ok' });
 
   //res.send({error:'error'});
