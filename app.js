@@ -16,6 +16,7 @@ function authenticateToken(req, res, next) {
   jwt.verify(token, secretKey, (err, user) => {
     
     if (err){
+      console.log(token);
       return res.sendStatus(403);
     } 
 
@@ -39,7 +40,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); 
   res.setHeader("Content-Security-Policy", "connect-src 'self' http://localhost");
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type,Authorization');
   res.setHeader('Access-Control-Allow-Credentials', true);
   next();
 });
@@ -171,11 +172,36 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
   }
 });
 
-// na froncie zapisywanie w stanie reacta danych, a nastepnie po skonczeniu dodawnaia i konfiguracji nastepuje wywolanie kolejnych end-pointow 
-
 app.post('/api/join-to-home', authenticateToken, (req,res) =>{
   const {user_id, home_invite_code} = req.body;
-}); // tutaj ma byc zwracane id domu po kodzie dolaczenia i jako parametr w body id_uzytkownika zalogownego aby dodac go do users_home
+
+  console.log(home_invite_code);
+  console.log(user_id);
+  
+  try {
+      
+      let sql = `select home_id,name from home where home_invite_code = '${home_invite_code}'`;
+     
+      conn.query(sql, function (err, result) {
+        if (err) throw err;
+        
+        let home_id = result[0].home_id;
+        let home_name = result.home_name;
+
+        sql2 = `insert into users_home (id,user_id,home_id) value (null,${user_id},${home_id})`;
+        conn.query(sql2, function (err, result) {
+            console.log(`id: ${result.insertId}`);
+            return res.send({ success:'ok', home_name: home_name });
+          });
+        });
+      
+  } catch (error) {
+    res.send({error:'error'});
+  }
+
+ 
+
+}); 
 
 app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
