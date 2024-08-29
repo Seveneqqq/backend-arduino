@@ -172,40 +172,46 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
   }
 });
 
-app.post('/api/join-to-home', authenticateToken, (req,res) =>{
-  const {user_id, home_invite_code} = req.body;
+app.post('/api/join-to-home', authenticateToken, (req, res) => {
+  const { user_id, home_invite_code } = req.body;
 
   console.log(home_invite_code);
   console.log(user_id);
-  
-  try {
-      
-      let sql = `select home_id,name from home where home_invite_code = '${home_invite_code}'`;
-     
-      conn.query(sql, function (err, result) {
-        if (err) throw err;
 
-        try{
+  let sql = `SELECT home_id, name FROM home WHERE home_invite_code = ?`;
+
+  conn.query(sql, [home_invite_code], function (err, result) {
+      if (err) {
+          console.error('Error while querying the database:', err);
+          return res.status(500).send({ error: 'Database error' });
+      }
+
+      if (result.length === 0) {
+          return res.status(404).send({ error: 'Home not found' });
+      }
+
+      try {
           let home_id = result[0].home_id;
-          let home_name = result.home_name;
-        }catch(error){
-         return res.send({error:'error'});
-        }
+          let home_name = result[0].name;
 
-        sql2 = `insert into users_home (id,user_id,home_id) value (null,${user_id},${home_id})`;
-        conn.query(sql2, function (err, result) {
-            console.log(`id: ${result.insertId}`);
-            res.send({ success:'ok', home_name: home_name });
+          let sql2 = `INSERT INTO users_home (id, user_id, home_id) VALUES (null, ?, ?)`;
+
+          conn.query(sql2, [user_id, home_id], function (err, result) {
+              if (err) {
+                  console.error('Error while inserting into the database:', err);
+                  return res.status(500).send({ error: 'Database error' });
+              }
+
+              console.log(`Inserted id: ${result.insertId}`);
+              res.send({ success: 'ok', home_name: home_name });
           });
-        });
-      
-  } catch (error) {
-    return res.send({error:'error'});
-  }
+      } catch (error) {
+          console.error('Error while processing the request:', error);
+          return res.status(500).send({ error: 'The user has already joined the home.' });
+      }
+  });
+});
 
- 
-
-}); 
 
 app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
