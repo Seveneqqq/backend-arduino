@@ -236,11 +236,36 @@ app.post('/api/user-homes', authenticateToken, (req, res)=>{
 
   const {user_id} = req.body;
 
+    try {
+     
+      conn.query(`SELECT * from users_home,home where users_home.home_id = home.home_id and users_home.user_id = ${user_id};`, function(err,result,fields){
 
-  let sql = `SELECT * from users_home,home where users_home.home_id = home.home_id and users_home.user_id = ${user_id};`;
+          let homesArray = [];
 
+          result.forEach(el=>{
+            
+            let home = {
+              id: el.id,
+              home_id: el.home_id,
+              name: el.name,
+              owner_id: el.owner_id,
+            };
 
+            homesArray.push(home);
+
+          });
+
+          res.send(homesArray);
+
+      });  
+    } 
+    catch (error) {
+        console.error(error);
+        res.send({ error: error});
+    }
 });
+
+
 
 
 
