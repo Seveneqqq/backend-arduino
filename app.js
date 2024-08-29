@@ -173,10 +173,8 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
 });
 
 app.post('/api/join-to-home', authenticateToken, (req, res) => {
-  const { user_id, home_invite_code } = req.body;
 
-  console.log(home_invite_code);
-  console.log(user_id);
+  const { user_id, home_invite_code } = req.body;
 
   let sql = `SELECT home_id, name FROM home WHERE home_invite_code = ?`;
 
@@ -191,17 +189,16 @@ app.post('/api/join-to-home', authenticateToken, (req, res) => {
       }
 
       try {
-          let home_id = result[0].home_id;
-          let home_name = result[0].name;
+            let home_id = result[0].home_id;
+            let home_name = result[0].name;
 
-          let sql2 = `INSERT INTO users_home (id, user_id, home_id) VALUES (null, ?, ?)`;
+            let sql2 = `INSERT INTO users_home (id, user_id, home_id) VALUES (null, ?, ?)`;
 
           conn.query(sql2, [user_id, home_id], function (err, result) {
               if (err) {
                   console.error('Error while inserting into the database:', err);
                   return res.status(500).send({ error: 'Database error' });
               }
-
               console.log(`Inserted id: ${result.insertId}`);
               res.send({ success: 'ok', home_name: home_name });
           });
@@ -211,7 +208,6 @@ app.post('/api/join-to-home', authenticateToken, (req, res) => {
       }
   });
 });
-
 
 app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
@@ -235,6 +231,64 @@ app.post('/api/add-new-devices', authenticateToken, (req,res) => {
   }
   
 }); 
+
+app.post('/api/user-homes', authenticateToken, (req, res)=>{
+
+  const {user_id} = req.body;
+
+
+  let sql = `SELECT * from users_home,home where users_home.home_id = home.home_id and users_home.user_id = ${user_id};`;
+
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 app.get('/api/rooms', authenticateToken, (req,res) => {
 
