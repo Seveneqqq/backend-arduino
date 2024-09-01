@@ -4,8 +4,48 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-
 const secretKey = process.env.JWT_SECRET;
+
+//arduino       --------------------------------------------------------------------------------------------------------------------
+
+const SerialPort = require('serialport');
+const Readline = require('@serialport/parser-readline');
+
+const port = new SerialPort.SerialPort({
+  path:'COM3', 
+  baudRate: 9600,
+  dataBits: 8,
+  parity: 'none',
+  stopBits: 1,
+  flowControl: false
+});
+
+function sendJson() {
+
+  const jsonData = { instruction: "dziala"}; //tutaj tresc jsona
+
+  port.write(JSON.stringify(jsonData) + '\n', (err) => {
+    if (err) {
+      return console.error('Error on write: ', err.message);
+    }
+    console.log('Data sent to arduino:', jsonData);
+  });
+}
+
+port.on('data', (data) => {
+  console.log(`Data from arduino: ${data}`); 
+});
+
+//end of arduino  --------------------------------------------------------------------------------------------------------------------
+
+setInterval(() => {
+  sendJson();
+}, 3000);
+
+
+
+
+
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -172,36 +212,42 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
   }
 });
 
-app.post('/api/join-to-home', authenticateToken, (req,res) =>{
-  const {user_id, home_invite_code} = req.body;
+app.post('/api/join-to-home', authenticateToken, (req, res) => {
 
-  console.log(home_invite_code);
-  console.log(user_id);
-  
-  try {
-      
-      let sql = `select home_id,name from home where home_invite_code = '${home_invite_code}'`;
-     
-      conn.query(sql, function (err, result) {
-        if (err) throw err;
-        
-        let home_id = result[0].home_id;
-        let home_name = result.home_name;
+  const { user_id, home_invite_code } = req.body;
 
-        sql2 = `insert into users_home (id,user_id,home_id) value (null,${user_id},${home_id})`;
-        conn.query(sql2, function (err, result) {
-            console.log(`id: ${result.insertId}`);
-            return res.send({ success:'ok', home_name: home_name });
+  let sql = `SELECT home_id, name FROM home WHERE home_invite_code = ?`;
+
+  conn.query(sql, [home_invite_code], function (err, result) {
+      if (err) {
+          console.error('Error while querying the database:', err);
+          return res.status(500).send({ error: 'Database error' });
+      }
+
+      if (result.length === 0) {
+          return res.status(404).send({ error: 'Home not found' });
+      }
+
+      try {
+            let home_id = result[0].home_id;
+            let home_name = result[0].name;
+
+            let sql2 = `INSERT INTO users_home (id, user_id, home_id) VALUES (null, ?, ?)`;
+
+          conn.query(sql2, [user_id, home_id], function (err, result) {
+              if (err) {
+                  console.error('Error while inserting into the database:', err);
+                  return res.status(500).send({ error: 'Database error' });
+              }
+              console.log(`Inserted id: ${result.insertId}`);
+              res.send({ success: 'ok', home_name: home_name });
           });
-        });
-      
-  } catch (error) {
-    res.send({error:'error'});
-  }
-
- 
-
-}); 
+      } catch (error) {
+          console.error('Error while processing the request:', error);
+          return res.status(500).send({ error: 'The user has already joined the home.' });
+      }
+  });
+});
 
 app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
@@ -225,6 +271,89 @@ app.post('/api/add-new-devices', authenticateToken, (req,res) => {
   }
   
 }); 
+
+app.post('/api/user-homes', authenticateToken, (req, res)=>{
+
+  const {user_id} = req.body;
+
+    try {
+     
+      conn.query(`SELECT * from users_home,home where users_home.home_id = home.home_id and users_home.user_id = ${user_id};`, function(err,result,fields){
+
+          let homesArray = [];
+
+          result.forEach(el=>{
+            
+            let home = {
+              id: el.id,
+              home_id: el.home_id,
+              name: el.name,
+              owner_id: el.owner_id,
+            };
+
+            homesArray.push(home);
+
+          });
+
+          res.send(homesArray);
+
+      });  
+    } 
+    catch (error) {
+        console.error(error);
+        res.send({ error: error});
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 app.get('/api/rooms', authenticateToken, (req,res) => {
 
