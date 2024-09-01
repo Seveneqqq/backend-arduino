@@ -4,8 +4,48 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-
 const secretKey = process.env.JWT_SECRET;
+
+//arduino       --------------------------------------------------------------------------------------------------------------------
+
+const SerialPort = require('serialport');
+const Readline = require('@serialport/parser-readline');
+
+const port = new SerialPort.SerialPort({
+  path:'COM3', 
+  baudRate: 9600,
+  dataBits: 8,
+  parity: 'none',
+  stopBits: 1,
+  flowControl: false
+});
+
+function sendJson() {
+
+  const jsonData = { instruction: "dziala"}; //tutaj tresc jsona
+
+  port.write(JSON.stringify(jsonData) + '\n', (err) => {
+    if (err) {
+      return console.error('Error on write: ', err.message);
+    }
+    console.log('Data sent to arduino:', jsonData);
+  });
+}
+
+port.on('data', (data) => {
+  console.log(`Data from arduino: ${data}`); 
+});
+
+//end of arduino  --------------------------------------------------------------------------------------------------------------------
+
+setInterval(() => {
+  sendJson();
+}, 3000);
+
+
+
+
+
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
