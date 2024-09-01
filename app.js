@@ -6,63 +6,71 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const secretKey = process.env.JWT_SECRET;
 
-//arduino       --------------------------------------------------------------------------------------------------------------------
+let connected;
 
 const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
 
-const port = new SerialPort.SerialPort({
-  path:'COM3', 
-  baudRate: 9600,
-  dataBits: 8,
-  parity: 'none',
-  stopBits: 1,
-  flowControl: false
-});
+function tryToConnect() {
 
-function sendJson() {
+  return new Promise((resolve, reject) => {
+    
+    try {
+      const port = new SerialPort.SerialPort({
+        path: 'COM3',
+        baudRate: 9600,
+        dataBits: 8,
+        parity: 'none',
+        stopBits: 1,
+        flowControl: false
+      });
 
-  const jsonData = { instruction: "check-connection"}; //tutaj tresc jsona
+      port.on('error', (err) => {
+        console.error('Failed to connect');
+        reject(false);
+      });
 
-  port.write(JSON.stringify(jsonData) + '\n', (err) => {
-    if (err) {
-      return console.error('Error on write: ', err.message);
+      const jsonData = { instruction: "check-connection" };
+
+      port.write(JSON.stringify(jsonData) + '\n', (err) => {
+        if (err) {
+          console.error('Error on write: ', err.message);
+          reject(false); 
+        }
+        console.log('Data sent to arduino:', jsonData);
+      });
+
+      port.on('data', (data) => {
+        try {
+          console.log(`Data from arduino: ${data}`);
+          let jsonData = JSON.parse(data);
+          if (jsonData.connected) {
+            resolve(true);
+          } else {
+            resolve(false); 
+          }
+        } catch (error) {
+          console.log('failed connection');
+          reject(false);
+        }
+      });
+    } catch (error) {
+      console.log('Failed');
+      reject(false); 
     }
-    console.log('Data sent to arduino:', jsonData);
   });
 }
 
-port.on('data', (data) => {
-  
-  console.log(`Data from arduino: ${data}`); 
-  let jsonData = JSON.parse(data);
-  let connected; 
+async function testConnection() {
+  try {
+    const result = await tryToConnect();
+    console.log(result); 
+  } catch (error) {
+    console.log(error); 
+  }
+}
 
-    if(jsonData.connected){
-      if(jsonData.connected == true){
-        connected = true;
-      }
-      else{
-        connected = false;
-      }
-
-      console.log(connected);
-
-    }
-
-
-});
-
-//end of arduino  --------------------------------------------------------------------------------------------------------------------
-
-setInterval(() => {
-  sendJson();
-}, 3000);
-
-
-
-
-
+testConnection();
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -415,9 +423,9 @@ app.post('/api/command', authenticateToken, (req, res) => {
 
 
 // Uruchomienie serwera
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Serwer nasłuchuje na porcie ${PORT}`);
+const appPort = process.env.appPort || 4000;
+app.listen(appPort, () => {
+  console.log(`Serwer nasłuchuje na porcie ${appPort}`);
 });
 
 
