@@ -43,10 +43,12 @@ function tryToConnect() {
 
       port.on('data', (data) => {
         try {
+
           console.log(`Data from arduino: ${data}`);
           let jsonData = JSON.parse(data);
           if (jsonData.connected) {
             resolve(true);
+
           } else {
             resolve(false); 
           }
@@ -56,26 +58,30 @@ function tryToConnect() {
         }
       });
     } catch (error) {
+
       console.log('Failed');
       reject(false); 
+
     }
   });
 }
 
 async function testConnection() {
   try {
+
     const result = await tryToConnect();
     console.log(result); 
     return result;
+
   } catch (error) {
+
     console.log(error); 
     return false;
+
   }
-}
-
-
-
-
+} //przy tworzeniu domu i przy wejsciu do dashboardu
+//funkcja ma sie wywolywac gdy kliknie sie przycisk znajdz urzadzenia 
+//
 
 app.post('/api/find-devices', authenticateToken, async (req,res) =>{
 
@@ -91,10 +97,7 @@ app.post('/api/find-devices', authenticateToken, async (req,res) =>{
     port.close();
   }
   
-
 });
-
-
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -308,11 +311,11 @@ app.post('/api/add-new-devices', authenticateToken, (req,res) => {
     
     devices.forEach(el=>{
 
-      conn.query(`insert into devices (device_id, name, home_id, room_id) values ('','${el.name}', ${home_id},${room_id})`);
+      conn.query(`insert into devices (device_id, name, home_id, room_id, label, command_on, command_off, status) values ('','${el.name}', ${home_id},${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}')`);
 
     });
 
-    res.send({success: 'Dodano nowe urządzenia'});
+    res.send({success: 'New devices added'});
 
   } catch (error) {
     console.log(error);
