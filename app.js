@@ -87,6 +87,8 @@ app.post('/api/find-devices', authenticateToken, async (req,res) =>{
   } catch (error) {
     res.send({error: error});
     console.log('Failed');
+  }finally{
+    port.close();
   }
   
 
