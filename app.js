@@ -22,7 +22,7 @@ const port = new SerialPort.SerialPort({
 
 function sendJson() {
 
-  const jsonData = { instruction: "dziala"}; //tutaj tresc jsona
+  const jsonData = { instruction: "check-connection"}; //tutaj tresc jsona
 
   port.write(JSON.stringify(jsonData) + '\n', (err) => {
     if (err) {
@@ -33,7 +33,24 @@ function sendJson() {
 }
 
 port.on('data', (data) => {
+  
   console.log(`Data from arduino: ${data}`); 
+  let jsonData = JSON.parse(data);
+  let connected; 
+
+    if(jsonData.connected){
+      if(jsonData.connected == true){
+        connected = true;
+      }
+      else{
+        connected = false;
+      }
+
+      console.log(connected);
+
+    }
+
+
 });
 
 //end of arduino  --------------------------------------------------------------------------------------------------------------------
