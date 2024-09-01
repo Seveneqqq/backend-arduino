@@ -7,6 +7,7 @@ require('dotenv').config();
 const secretKey = process.env.JWT_SECRET;
 
 let connected;
+let port;
 
 const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
@@ -14,9 +15,9 @@ const Readline = require('@serialport/parser-readline');
 function tryToConnect() {
 
   return new Promise((resolve, reject) => {
-    
+
     try {
-      const port = new SerialPort.SerialPort({
+      port = new SerialPort.SerialPort({
         path: 'COM3',
         baudRate: 9600,
         dataBits: 8,
@@ -65,12 +66,33 @@ async function testConnection() {
   try {
     const result = await tryToConnect();
     console.log(result); 
+    return result;
   } catch (error) {
     console.log(error); 
+    return false;
   }
 }
 
-testConnection();
+
+
+
+
+app.post('/api/find-devices', authenticateToken, async (req,res) =>{
+
+  try {
+
+    const connection = await testConnection();
+    await res.send({connection: connection});
+
+  } catch (error) {
+    res.send({error: error});
+    console.log('Failed');
+  }
+  
+
+});
+
+
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
