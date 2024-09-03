@@ -4,46 +4,14 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+
 const secretKey = process.env.JWT_SECRET;
 
-//arduino       --------------------------------------------------------------------------------------------------------------------
+let connected;
+let port;
 
 const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
-
-const port = new SerialPort.SerialPort({
-  path:'COM3', 
-  baudRate: 9600,
-  dataBits: 8,
-  parity: 'none',
-  stopBits: 1,
-  flowControl: false
-});
-
-function sendJson() {
-
-  const jsonData = { instruction: "dziala"}; //tutaj tresc jsona
-
-  port.write(JSON.stringify(jsonData) + '\n', (err) => {
-    if (err) {
-      return console.error('Error on write: ', err.message);
-    }
-    console.log('Data sent to arduino:', jsonData);
-  });
-}
-
-port.on('data', (data) => {
-  console.log(`Data from arduino: ${data}`); 
-});
-
-//end of arduino  --------------------------------------------------------------------------------------------------------------------
-
-setInterval(() => {
-  sendJson();
-}, 3000);
-
-
-
 
 
 
@@ -259,11 +227,11 @@ app.post('/api/add-new-devices', authenticateToken, (req,res) => {
     
     devices.forEach(el=>{
 
-      conn.query(`insert into devices (device_id, name, home_id, room_id) values ('','${el.name}', ${home_id},${room_id})`);
+      conn.query(`insert into devices (device_id, name, home_id, room_id, label, command_on, command_off, status) values ('','${el.name}', ${home_id},${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}')`);
 
     });
 
-    res.send({success: 'Dodano nowe urządzenia'});
+    res.send({success: 'New devices added'});
 
   } catch (error) {
     console.log(error);
@@ -304,6 +272,129 @@ app.post('/api/user-homes', authenticateToken, (req, res)=>{
         res.send({ error: error});
     }
 });
+
+
+
+
+
+
+
+
+
+
+function tryToConnect() {
+
+  return new Promise((resolve, reject) => {
+
+    try {
+      port = new SerialPort.SerialPort({
+        path: 'COM3',
+        baudRate: 9600,
+        dataBits: 8,
+        parity: 'none',
+        stopBits: 1,
+        flowControl: false
+      });
+
+      port.on('error', (err) => {
+        console.error('Failed to connect');
+        reject(false);
+      });
+
+      const jsonData = { instruction: "check-connection" };
+
+      port.write(JSON.stringify(jsonData) + '\n', (err) => {
+        if (err) {
+          console.error('Error on write: ', err.message);
+          reject(false); 
+        }
+        console.log('Data sent to arduino:', jsonData);
+      });
+
+      port.on('data', (data) => {
+        try {
+
+          console.log(`Data from arduino: ${data}`);
+          let jsonData = JSON.parse(data);
+          if (jsonData.connected) {
+            resolve(true);
+
+          } else {
+            resolve(false); 
+          }
+        } catch (error) {
+          console.log('failed connection');
+          reject(false);
+        }
+      });
+    } catch (error) {
+
+      console.log('Failed');
+      reject(false); 
+
+    }
+  });
+}
+
+async function testConnection() {
+  try {
+
+    const result = await tryToConnect();
+    console.log(result); 
+    return result;
+
+  } catch (error) {
+
+    console.log(error); 
+    return false;
+
+  }
+} //przy tworzeniu domu i przy wejsciu do dashboardu
+//funkcja ma sie wywolywac gdy kliknie sie przycisk znajdz urzadzenia 
+//
+
+app.post('/api/find-devices', authenticateToken, async (req,res) =>{
+
+  
+
+  try {
+    
+    const connection = await testConnection();
+    res.send({"connection":`${connection}`});
+    console.log('wyslano');
+  } catch (error) {
+    res.send({error: error});
+    console.log('Failed');
+  }finally{
+    await port.close();
+  }
+  
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -398,9 +489,9 @@ app.post('/api/command', authenticateToken, (req, res) => {
 
 
 // Uruchomienie serwera
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Serwer nasłuchuje na porcie ${PORT}`);
+const appPort = process.env.appPort || 4000;
+app.listen(appPort, () => {
+  console.log(`Serwer nasłuchuje na porcie ${appPort}`);
 });
 
 
