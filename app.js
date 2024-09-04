@@ -282,6 +282,11 @@ app.post('/api/user-homes', authenticateToken, (req, res)=>{
 
 
 
+
+
+
+
+
 function tryToConnect() {
 
   return new Promise((resolve, reject) => {
@@ -317,6 +322,7 @@ function tryToConnect() {
           console.log(`Data from arduino: ${data}`);
           let jsonData = JSON.parse(data);
           if (jsonData.connected) {
+
             resolve(true);
 
           } else {
@@ -349,19 +355,76 @@ async function testConnection() {
     return false;
 
   }
-} //przy tworzeniu domu i przy wejsciu do dashboardu
-//funkcja ma sie wywolywac gdy kliknie sie przycisk znajdz urzadzenia 
-//
+} 
+
+
+async function getDevices() {
+  return new Promise((resolve, reject) => {
+
+    try {
+      
+      port.on('error', (err) => {
+        console.error('Failed to connect1');
+        reject(false);
+      });
+
+      const jsonData = { instruction: "send-devices-list" };
+
+      port.write(JSON.stringify(jsonData) + '\n', (err) => {
+        if (err) {
+          console.error('Error on write: ', err.message);
+          reject(false); 
+        }
+        console.log('Data sent to arduino:', jsonData);
+      });
+
+      port.on('data', (data) => {
+        try {
+
+          let jsonData = JSON.parse(data);
+          if (jsonData.devices) {
+
+            resolve(jsonData.devices);
+
+          } else {
+            resolve(false); 
+          }
+        } catch (error) {
+          console.log('failed connection2');
+          reject(false);
+        }
+      });
+    } catch (error) {
+
+      console.log('Failed3');
+      reject(false); 
+
+    }
+  });
+}
+
+
 
 app.post('/api/find-devices', authenticateToken, async (req,res) =>{
-
-  
 
   try {
     
     const connection = await testConnection();
-    res.send({"connection":`${connection}`});
-    console.log('wyslano');
+    
+    
+    if(connection){
+      
+      res.send({"connection":`${connection}`});
+
+      const devicesList = await getDevices();
+
+      console.log(devicesList);
+
+      
+
+    }
+
+
   } catch (error) {
     res.send({error: error});
     console.log('Failed');
