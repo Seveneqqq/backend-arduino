@@ -414,13 +414,11 @@ app.post('/api/find-devices', authenticateToken, async (req,res) =>{
     
     if(connection){
       
-      res.send({"connection":`${connection}`});
-
       const devicesList = await getDevices();
 
       console.log(devicesList);
 
-      
+      res.send({"connection":`${connection}`, "devices": devicesList});
 
     }
 
