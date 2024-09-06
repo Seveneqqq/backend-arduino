@@ -364,7 +364,7 @@ async function getDevices() {
     try {
       
       port.on('error', (err) => {
-        console.error('Failed to connect1');
+        console.error('Failed to connect');
         reject(false);
       });
 
@@ -410,16 +410,20 @@ app.post('/api/find-devices', authenticateToken, async (req,res) =>{
   try {
     
     const connection = await testConnection();
-    
-    
-    if(connection){
       
+    if(connection){
+
       const devicesList = await getDevices();
 
       console.log(devicesList);
 
       res.send({"connection":`${connection}`, "devices": devicesList});
 
+      
+
+    }
+    else{
+      res.send({"connection":`${connection}`});
     }
 
 
