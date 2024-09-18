@@ -217,29 +217,6 @@ app.post('/api/join-to-home', authenticateToken, (req, res) => {
   });
 });
 
-app.post('/api/add-new-devices', authenticateToken, (req,res) => {
-
-  const home_id =  req.body.home_id;
-  const room_id = req.body.room_id ? req.body.room_id : 'NULL';
-  const devices = req.body.devices;
-
-  try {
-    
-    devices.forEach(el=>{
-
-      conn.query(`insert into devices (device_id, name, home_id, room_id, label, command_on, command_off, status) values ('','${el.name}', ${home_id},${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}')`);
-
-    });
-
-    res.send({success: 'New devices added'});
-
-  } catch (error) {
-    console.log(error);
-    res.send({error: error});
-  }
-  
-}); 
-
 app.post('/api/user-homes', authenticateToken, (req, res)=>{
 
   const {user_id} = req.body;
@@ -272,19 +249,6 @@ app.post('/api/user-homes', authenticateToken, (req, res)=>{
         res.send({ error: error});
     }
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 function tryToConnect() {
@@ -403,8 +367,6 @@ async function getDevices() {
   });
 }
 
-
-
 app.post('/api/find-devices', authenticateToken, async (req,res) =>{
 
   try {
@@ -436,8 +398,44 @@ app.post('/api/find-devices', authenticateToken, async (req,res) =>{
   
 });
 
+app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
+  const home_id =  req.body.home_id;
+  const room_id = req.body.room_id ? req.body.room_id : 'NULL';
+  const devices = req.body.devices;
 
+  try {
+    
+    devices.forEach(el=>{
+
+      conn.query(`insert into devices (device_id, name, home_id, room_id, label, command_on, command_off, status) values ('','${el.name}', ${home_id},${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}')`);
+
+    });
+
+    res.send({success: 'New devices added'});
+
+  } catch (error) {
+    console.log(error);
+    res.send({error: error});
+  }
+  
+});
+
+app.get('/api/devices-list', authenticateToken, (req, res) => {
+
+  try {
+    conn.query('select * from devices_list', function (err, result){
+
+      res.send({devices : result});
+
+    });
+  } catch (error) {
+    res.send({error: error});
+    console.log(error);
+  }
+  
+
+});
 
 
 
