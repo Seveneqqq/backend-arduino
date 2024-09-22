@@ -437,23 +437,55 @@ app.get('/api/devices-list', authenticateToken, (req, res) => {
 
 });
 
+
+
+
+
+
 app.get('/api/test-sensors',(req, res) =>{
+
+      startApp();
+
+});
+
+function startApp() {
+  const port = new SerialPort.SerialPort({
+    path: 'COM3',
+    baudRate: 9600,
+    dataBits: 8,
+    parity: 'none',
+    stopBits: 1,
+    flowControl: false
+  });
 
   const jsonData = { instruction: "start-app" };
 
-      port.write(JSON.stringify(jsonData) + '\n', (err) => {
-        if (err) {
-          console.error('Error on write: ', err.message);
-          reject(false); 
-        }
-        console.log('Arduino start: ');
-      });
+  port.write(JSON.stringify(jsonData) + '\n', (err) => {
+    if (err) {
+      console.error('Error on write: ', err.message);
+      return;
+    }
+    console.log('Arduino start: ');
+  });
 
-  port.on('data',async (data) =>{
-    let json = await JSON.parse(data);
-    console.log(json);
-  })
-});
+  let buffer = '';
+
+  port.on('data', (data) => {
+    buffer += data.toString(); // Dodaj dane do bufora
+    let lines = buffer.split('\n'); // Rozdziel na linie
+
+    for (let i = 0; i < lines.length - 1; i++) {
+      try {
+        const json = JSON.parse(lines[i]); // Parsuj każdą linię
+        console.log(json);
+      } catch (err) {
+        console.error('Error parsing JSON: ', err.message);
+      }
+    }
+
+    buffer = lines[lines.length - 1]; // Zachowaj ostatnią, niepełną linię
+  });
+}
 
 
 
