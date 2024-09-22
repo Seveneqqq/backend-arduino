@@ -437,6 +437,23 @@ app.get('/api/devices-list', authenticateToken, (req, res) => {
 
 });
 
+app.get('/api/test-sensors',(req, res) =>{
+
+  const jsonData = { instruction: "start-app" };
+
+      port.write(JSON.stringify(jsonData) + '\n', (err) => {
+        if (err) {
+          console.error('Error on write: ', err.message);
+          reject(false); 
+        }
+        console.log('Arduino start: ');
+      });
+
+  port.on('data',async (data) =>{
+    let json = await JSON.parse(data);
+    console.log(json);
+  })
+});
 
 
 
