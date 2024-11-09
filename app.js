@@ -79,10 +79,6 @@ app.post('/api/login', (req, res) => {
 
   }
 
-  
-
-
-
 });
   
 app.post('/api/register', (req, res) => {
@@ -471,19 +467,18 @@ function startApp() {
   let buffer = '';
 
   port.on('data', (data) => {
-    buffer += data.toString(); // Dodaj dane do bufora
-    let lines = buffer.split('\n'); // Rozdziel na linie
-
+    buffer += data.toString(); 
+    let lines = buffer.split('\n'); 
     for (let i = 0; i < lines.length - 1; i++) {
       try {
-        const json = JSON.parse(lines[i]); // Parsuj każdą linię
+        const json = JSON.parse(lines[i]); 
         console.log(json);
       } catch (err) {
         console.error('Error parsing JSON: ', err.message);
       }
     }
 
-    buffer = lines[lines.length - 1]; // Zachowaj ostatnią, niepełną linię
+    buffer = lines[lines.length - 1]; 
   });
 }
 
