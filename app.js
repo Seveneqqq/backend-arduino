@@ -3,6 +3,8 @@ const app = express();
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const mongoDatabaseRoutes = require('./api/mongodb/route');
 require('dotenv').config();
 
 const secretKey = process.env.JWT_SECRET;
@@ -14,6 +16,7 @@ const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
 
 
+app.use('/api/mongodb', mongoDatabaseRoutes);
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -601,6 +604,9 @@ app.listen(appPort, () => {
   console.log(`Serwer nasłuchuje na porcie ${appPort}`);
 });
 
+mongoose.connect('mongodb://localhost:27017/home_automation')
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
 
 
