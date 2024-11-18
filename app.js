@@ -596,8 +596,6 @@ app.post('/api/command', authenticateToken, (req, res) => {
 });
 
 
-
-
 // Uruchomienie serwera
 const appPort = process.env.appPort || 4000;
 app.listen(appPort, () => {
