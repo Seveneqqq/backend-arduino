@@ -27,8 +27,7 @@ const scenarioSchema = new mongoose.Schema({
             required: true
         },
         status: {
-            type: String,
-            enum: ['ON', 'OFF'],
+            type: Boolean,
             required: true
         },
         additional_options: {

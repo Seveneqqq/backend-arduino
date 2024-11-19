@@ -15,9 +15,6 @@ let port;
 const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
 
-
-app.use('/api/mongodb', mongoDatabaseRoutes);
-
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -57,6 +54,7 @@ app.use((req, res, next) => {
 });
 
 app.use(bodyParser.json());
+app.use('/api/mongodb', mongoDatabaseRoutes);
 
 app.post('/api/login', (req, res) => {
 
