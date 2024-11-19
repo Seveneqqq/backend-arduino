@@ -9,6 +9,14 @@ const scenarioSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,  
         required: true
     },
+    scenarioTurnOn:{
+        type: String,
+        required: false
+    },
+    scenarioTurnOff:{
+        type: String,
+        required: false
+    },
     devices: [{
         device_id: {
             type: String,

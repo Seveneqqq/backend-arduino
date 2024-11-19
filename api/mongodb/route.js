@@ -13,12 +13,29 @@ router.get('/', async (req, res) => {
 
 });
 
-router.post('/', async (req, res) => {
+router.post('/add-scenario', async (req, res) => {
 
     try {
-        const scenario = new Scenario(req.body);
-        const savedScenario = await scenario.save();
-        res.status(201).json(savedScenario);
+
+        const {name, home_id, devices} = req.body;
+        const {scenarioTurnOn,ScenarioTurnOff} = req.body || null;
+
+        const newScenario = new Scenario({
+            name,
+            home_id,
+            scenarioTurnOn,
+            scenarioTurnOff,
+            devices: devices.map(device => ({
+                device_id: device.device_id,
+                device_name: device.device_name,
+                status: device.status,
+                additional_options: device.additional_options || {} 
+            }))
+        });
+
+        const savedScenario = await newScenario.save();
+        res.status(200).json(savedScenario);
+        
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
