@@ -54,7 +54,7 @@ app.use((req, res, next) => {
 });
 
 app.use(bodyParser.json());
-app.use('/api/mongodb', mongoDatabaseRoutes);
+app.use('/api/mongodb',  mongoDatabaseRoutes); // dodać authenticateToken,
 
 app.post('/api/login', (req, res) => {
 
@@ -247,6 +247,30 @@ app.post('/api/user-homes', authenticateToken, (req, res)=>{
     }
 });
 
+app.post('/api/home/get-devices', authenticateToken, (req,res)=>{
+
+  try{
+
+    const {home_id} = req.body;
+
+    conn.query(`select * from devices where home_id = ${home_id}`, (err, result, fields) => {
+
+      if (err) {
+        console.error('Error while querying the database');
+        return res.status(500).send({ error: 'Database error' });
+      }
+
+      res.status(200).json(result);
+
+    });
+
+  }
+  catch (error) {
+    console.error(error);
+    res.send({ error: error});
+  }
+
+})
 
 function tryToConnect() {
 
@@ -364,6 +388,8 @@ async function getDevices() {
   });
 }
 
+
+
 app.post('/api/find-devices', authenticateToken, async (req,res) =>{
 
   try {
@@ -405,7 +431,7 @@ app.post('/api/add-new-devices', authenticateToken, (req,res) => {
     
     devices.forEach(el=>{
 
-      conn.query(`insert into devices (device_id, name, home_id, room_id, label, command_on, command_off, status) values ('','${el.name}', ${home_id},${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}')`);
+      conn.query(`insert into devices (device_id, name, home_id, room_id, label, command_on, command_off, status, category) values ('','${el.name}', ${home_id},${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}', '${el.category}' )`);
 
     });
 
