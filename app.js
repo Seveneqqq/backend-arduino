@@ -159,6 +159,8 @@ app.post('/api/register', (req, res) => {
 
 app.post('/api/new-home', authenticateToken, (req,res) =>{
   
+  console.log('Tworzenie domu');
+
   const {userId,homeName} = req.body;
 
   try {
@@ -166,7 +168,9 @@ app.post('/api/new-home', authenticateToken, (req,res) =>{
     conn.query(`INSERT INTO home (home_id, name, owner_id, home_invite_code) VALUES ('','${homeName}',${userId},'')`, function(err,result,fields){
       
         const homeId = result.insertId;
-        console.log(homeId);
+
+    conn.query(`INSERT INTO users_home (user_id, home_id) VALUES ('${userId}',${homeId})`); 
+      
         return res.send({ success: `New home created : ${homeName}`,home_id: homeId});
 
     });  
@@ -423,15 +427,27 @@ app.post('/api/find-devices', authenticateToken, async (req,res) =>{
 
 app.post('/api/add-new-devices', authenticateToken, (req,res) => {
 
-  const home_id =  req.body.home_id;
-  const room_id = req.body.room_id ? req.body.room_id : 'NULL';
+  console.log('Dodawanie urzadzen');
+
+  const home_id =  req.body.homeId;
   const devices = req.body.devices;
+
+  const rooms = [
+    'Kitchen',
+    'Living room', 
+    'Bathroom', 
+    'Garden', 
+    'Childrens room', 
+    'Garage', 
+    'Office',
+];
 
   try {
     
-    devices.forEach(el=>{
+    devices.forEach((el)=>{
 
-      conn.query(`insert into devices (device_id, name, home_id, room_id, label, command_on, command_off, status, category) values ('','${el.name}', ${home_id},${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}', '${el.category}' )`);
+      let room_id = rooms.indexOf(el.selectedRoom);
+      conn.query(`insert into devices (device_id, name, home_id, room_id, label, command_on, command_off, status, category) values ('','${el.name}', ${home_id}, ${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}', '${el.category}' )`);
 
     });
 
