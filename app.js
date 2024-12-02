@@ -5,7 +5,57 @@ const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const mongoDatabaseRoutes = require('./api/mongodb/route');
+const cors = require('cors');
 require('dotenv').config();
+
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+
+app.use(bodyParser.json());
+
+const server = app.listen(4000, () => {
+  console.log('Server is running on port 4000');
+});
+
+const io = require('socket.io')(server, {
+  cors: {
+      origin: "http://localhost:3000",
+      methods: ["GET", "POST"],
+      credentials: true
+  }
+});
+
+let activeSocket = null;
+let serialPort = null;
+
+io.on('connection', (socket) => {
+  console.log('Client connected');
+  activeSocket = socket;
+
+  socket.on('disconnect', () => {
+      console.log('Client disconnected');
+      if (activeSocket === socket) {
+          activeSocket = null;
+      }
+  });
+});
+
+function closeSerialPort() {
+  return new Promise((resolve) => {
+      if (serialPort && serialPort.isOpen) {
+          serialPort.close(() => {
+              serialPort = null;
+              resolve();
+          });
+      } else {
+          resolve();
+      }
+  });
+}
+
+
 
 const secretKey = process.env.JWT_SECRET;
 
@@ -53,7 +103,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(bodyParser.json());
+
 app.use('/api/mongodb',  mongoDatabaseRoutes); // dodać authenticateToken,
 
 app.post('/api/login', (req, res) => {
@@ -452,7 +502,7 @@ app.post('/api/add-new-devices', authenticateToken, (req,res) => {
     });
 
     res.send({success: 'New devices added'});
-
+    
   } catch (error) {
     console.log(error);
     res.send({error: error});
@@ -480,52 +530,66 @@ app.get('/api/devices-list', authenticateToken, (req, res) => {
 
 
 
-
-app.get('/api/test-sensors',(req, res) =>{
-
-      startApp();
-
+app.get('/api/test-sensors', async (req, res) => {
+  try {
+      await closeSerialPort();
+      await startApp();
+      res.json({ status: 'success', message: 'Sensor reading started' });
+  } catch (error) {
+      res.status(500).json({ status: 'error', message: error.message });
+  }
 });
 
-function startApp() {
-  const port = new SerialPort.SerialPort({
-    path: 'COM3',
-    baudRate: 9600,
-    dataBits: 8,
-    parity: 'none',
-    stopBits: 1,
-    flowControl: false
+async function startApp() {
+  const SerialPort = require('serialport');
+
+  if (serialPort) {
+      await closeSerialPort();
+  }
+
+  serialPort = new SerialPort.SerialPort({
+      path: 'COM3',
+      baudRate: 9600,
+      dataBits: 8,
+      parity: 'none',
+      stopBits: 1,
+      flowControl: false
   });
 
   const jsonData = { instruction: "start-app" };
-
-  port.write(JSON.stringify(jsonData) + '\n', (err) => {
-    if (err) {
-      console.error('Error on write: ', err.message);
-      return;
-    }
-    console.log('Arduino start: ');
+  
+  serialPort.write(JSON.stringify(jsonData) + '\n', (err) => {
+      if (err) {
+          console.error('Error on write: ', err.message);
+          throw err;
+      }
+      console.log('Arduino start');
   });
 
   let buffer = '';
-
-  port.on('data', (data) => {
-    buffer += data.toString(); 
-    let lines = buffer.split('\n'); 
-    for (let i = 0; i < lines.length - 1; i++) {
-      try {
-        const json = JSON.parse(lines[i]); 
-        console.log(json);
-      } catch (err) {
-        console.error('Error parsing JSON: ', err.message);
+  
+  serialPort.on('data', (data) => {
+      buffer += data.toString();
+      
+      let lines = buffer.split('\n');
+      
+      for (let i = 0; i < lines.length - 1; i++) {
+          try {
+              const json = JSON.parse(lines[i]);
+              console.log('Received data:', json);
+              io.emit('sensorData', json);
+          } catch (err) {
+              console.error('Error parsing JSON: ', err.message);
+          }
       }
-    }
+      
+      buffer = lines[lines.length - 1];
+  });
 
-    buffer = lines[lines.length - 1]; 
+  serialPort.on('error', (error) => {
+      console.error('Serial port error:', error);
   });
 }
-
-
 
 
 
@@ -636,11 +700,7 @@ app.post('/api/command', authenticateToken, (req, res) => {
 });
 
 
-// Uruchomienie serwera
-const appPort = process.env.appPort || 4000;
-app.listen(appPort, () => {
-  console.log(`Serwer nasłuchuje na porcie ${appPort}`);
-});
+
 
 mongoose.connect('mongodb://localhost:27017/home_automation')
     .then(() => console.log('Connected to MongoDB'))
