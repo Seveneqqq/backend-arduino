@@ -29,6 +29,7 @@ const io = require('socket.io')(server, {
 
 let activeSocket = null;
 let serialPort = null;
+let thisHomeDevices
 
 io.on('connection', (socket) => {
   console.log('Client connected');
@@ -441,6 +442,28 @@ async function getDevices() {
     }
   });
 }
+
+
+app.post('/api/home/do', async (req, res) => {
+
+  const {homeId, device, actions} = req.body;
+
+  if(device.status === "active"){
+
+    //todo: wyslanie do serial port
+
+    res.send(req.body);
+  }
+  else{
+
+    //todo: wyslanie w zaleznosci od tego co urzadzenie posiada (http, zigbee itp)
+
+    res.send(req.body);
+  }
+
+  
+
+});
 
 
 
