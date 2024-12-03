@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const SerialPort = require('serialport');
 const mongoDatabaseRoutes = require('./api/mongodb/route');
 const cors = require('cors');
 require('dotenv').config();
@@ -63,7 +64,6 @@ const secretKey = process.env.JWT_SECRET;
 let connected;
 let port;
 
-const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
 
 function authenticateToken(req, res, next) {
@@ -444,25 +444,48 @@ async function getDevices() {
 }
 
 
-app.post('/api/home/do', async (req, res) => {
+app.post("/api/home/do", async (req, res) => {
+  try {
+      const { device, actions } = req.body;
 
-  const {homeId, device, actions} = req.body;
+      if (device.status === "active") {
+          if (!port || !port.isOpen) {
+              port = new SerialPort.SerialPort({
+                  path: "COM3",
+                  baudRate: 9600,
+                  dataBits: 8,
+                  parity: "none",
+                  stopBits: 1,
+                  flowControl: false,
+              });
 
-  if(device.status === "active"){
+              port.on("error", (err) => {
+                  console.error("Failed to connect");
+              });
+          }
 
-    //todo: wyslanie do serial port
+          const jsonData = { 
+              instruction: "device-control", 
+              device: device.deviceName, 
+              actions: actions 
+          };
 
-    res.send(req.body);
+          await port.write(JSON.stringify(jsonData) + "\n", (err) => {
+              if (err) {
+                  console.error("Error on write: ", err.message);
+              }
+              console.log("Data sent to arduino:", jsonData);
+          });
+
+          res.send(req.body);
+      } else {
+          //todo: wyslanie w zaleznosci od tego co urzadzenie posiada (http, zigbee itp)
+          res.send(req.body);
+      }
+  } catch (err) {
+      console.error(err);
+      res.send({ error: "An error occurred" });
   }
-  else{
-
-    //todo: wyslanie w zaleznosci od tego co urzadzenie posiada (http, zigbee itp)
-
-    res.send(req.body);
-  }
-
-  
-
 });
 
 
@@ -564,7 +587,7 @@ app.get('/api/test-sensors', async (req, res) => {
 });
 
 async function startApp() {
-  const SerialPort = require('serialport');
+  
 
   if (serialPort) {
       await closeSerialPort();
