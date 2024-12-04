@@ -4,15 +4,66 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const SerialPort = require('serialport');
 const mongoDatabaseRoutes = require('./api/mongodb/route');
+const cors = require('cors');
 require('dotenv').config();
+
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+
+app.use(bodyParser.json());
+
+const server = app.listen(4000, () => {
+  console.log('Server is running on port 4000');
+});
+
+const io = require('socket.io')(server, {
+  cors: {
+      origin: "http://localhost:3000",
+      methods: ["GET", "POST"],
+      credentials: true
+  }
+});
+
+let activeSocket = null;
+let serialPort = null;
+let thisHomeDevices
+
+io.on('connection', (socket) => {
+  console.log('Client connected');
+  activeSocket = socket;
+
+  socket.on('disconnect', () => {
+      console.log('Client disconnected');
+      if (activeSocket === socket) {
+          activeSocket = null;
+      }
+  });
+});
+
+function closeSerialPort() {
+  return new Promise((resolve) => {
+      if (serialPort && serialPort.isOpen) {
+          serialPort.close(() => {
+              serialPort = null;
+              resolve();
+          });
+      } else {
+          resolve();
+      }
+  });
+}
+
+
 
 const secretKey = process.env.JWT_SECRET;
 
 let connected;
 let port;
 
-const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
 
 function authenticateToken(req, res, next) {
@@ -53,7 +104,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(bodyParser.json());
+
 app.use('/api/mongodb',  mongoDatabaseRoutes); // dodać authenticateToken,
 
 app.post('/api/login', (req, res) => {
@@ -292,6 +343,7 @@ function tryToConnect() {
 
       port.on('error', (err) => {
         console.error('Failed to connect');
+        console.log(err);
         reject(false);
       });
 
@@ -349,48 +401,111 @@ async function testConnection() {
 
 async function getDevices() {
   return new Promise((resolve, reject) => {
+      try {
+          let buffer = '';
+          
+          // Usuń poprzednie nasłuchiwanie
+          port.removeAllListeners('data');
+          port.removeAllListeners('error');
+          
+          port.on('error', (err) => {
+              console.error('Failed to connect:', err);
+              reject(false);
+          });
 
-    try {
-      
-      port.on('error', (err) => {
-        console.error('Failed to connect');
-        reject(false);
-      });
+          port.on('data', (chunk) => {
+              try {
+                  buffer += chunk.toString();
+                  
+                  // Sprawdź czy mamy kompletny JSON (kończy się znakiem nowej linii)
+                  if (buffer.includes('\n')) {
+                      let jsonStr = buffer.toString().trim();
+                      console.log('Received data:', jsonStr);
+                      
+                      // Upewnij się, że mamy kompletny JSON z devices
+                      if (jsonStr.includes('"devices"')) {
+                          const jsonData = JSON.parse(jsonStr);
+                          if (jsonData.devices) {
+                              resolve(jsonData.devices);
+                          }
+                      }
+                      buffer = ''; // Wyczyść bufor
+                  }
+              } catch (error) {
+                  console.log('Error parsing data:', error);
+                  console.log('Received buffer:', buffer);
+              }
+          });
 
-      const jsonData = { instruction: "send-devices-list" };
+          // Wyślij żądanie
+          const jsonData = { instruction: "send-devices-list" };
+          port.write(JSON.stringify(jsonData) + '\n', (err) => {
+              if (err) {
+                  console.error('Error writing to port:', err.message);
+                  reject(false);
+              }
+              console.log('Data sent to arduino:', jsonData);
+          });
 
-      port.write(JSON.stringify(jsonData) + '\n', (err) => {
-        if (err) {
-          console.error('Error on write: ', err.message);
-          reject(false); 
-        }
-        console.log('Data sent to arduino:', jsonData);
-      });
+          // Timeout po 5 sekundach
+          setTimeout(() => {
+              port.removeAllListeners('data');
+              if (!buffer.includes('"devices"')) {
+                  reject(false);
+              }
+          }, 5000);
 
-      port.on('data', (data) => {
-        try {
-
-          let jsonData = JSON.parse(data);
-          if (jsonData.devices) {
-
-            resolve(jsonData.devices);
-
-          } else {
-            resolve(false); 
-          }
-        } catch (error) {
-          console.log('failed connection2');
+      } catch (error) {
+          console.log('Failed3:', error);
           reject(false);
-        }
-      });
-    } catch (error) {
-
-      console.log('Failed3');
-      reject(false); 
-
-    }
+      }
   });
 }
+
+
+app.post("/api/home/do", async (req, res) => {
+  try {
+      const { device, actions } = req.body;
+
+      if (device.status === "active") {
+          if (!port || !port.isOpen) {
+              port = new SerialPort.SerialPort({
+                  path: "COM3",
+                  baudRate: 9600,
+                  dataBits: 8,
+                  parity: "none",
+                  stopBits: 1,
+                  flowControl: false,
+              });
+
+              port.on("error", (err) => {
+                  console.error("Failed to connect");
+              });
+          }
+
+          const jsonData = { 
+              instruction: "device-control", 
+              device: device.deviceName, 
+              actions: actions 
+          };
+
+          await port.write(JSON.stringify(jsonData) + "\n", (err) => {
+              if (err) {
+                  console.error("Error on write: ", err.message);
+              }
+              console.log("Data sent to arduino:", jsonData);
+          });
+
+          res.send(req.body);
+      } else {
+          //todo: wyslanie w zaleznosci od tego co urzadzenie posiada (http, zigbee itp)
+          res.send(req.body);
+      }
+  } catch (err) {
+      console.error(err);
+      res.send({ error: "An error occurred" });
+  }
+});
 
 
 
@@ -419,6 +534,7 @@ app.post('/api/find-devices', authenticateToken, async (req,res) =>{
   } catch (error) {
     res.send({error: error});
     console.log('Failed');
+    console.log(error);
   }finally{
     await port.close();
   }
@@ -452,7 +568,7 @@ app.post('/api/add-new-devices', authenticateToken, (req,res) => {
     });
 
     res.send({success: 'New devices added'});
-
+    
   } catch (error) {
     console.log(error);
     res.send({error: error});
@@ -480,52 +596,66 @@ app.get('/api/devices-list', authenticateToken, (req, res) => {
 
 
 
-
-app.get('/api/test-sensors',(req, res) =>{
-
-      startApp();
-
+app.get('/api/test-sensors', async (req, res) => {
+  try {
+      await closeSerialPort();
+      await startApp();
+      res.json({ status: 'success', message: 'Sensor reading started' });
+  } catch (error) {
+      res.status(500).json({ status: 'error', message: error.message });
+  }
 });
 
-function startApp() {
-  const port = new SerialPort.SerialPort({
-    path: 'COM3',
-    baudRate: 9600,
-    dataBits: 8,
-    parity: 'none',
-    stopBits: 1,
-    flowControl: false
+async function startApp() {
+  
+
+  if (serialPort) {
+      await closeSerialPort();
+  }
+
+  serialPort = new SerialPort.SerialPort({
+      path: 'COM3',
+      baudRate: 9600,
+      dataBits: 8,
+      parity: 'none',
+      stopBits: 1,
+      flowControl: false
   });
 
   const jsonData = { instruction: "start-app" };
-
-  port.write(JSON.stringify(jsonData) + '\n', (err) => {
-    if (err) {
-      console.error('Error on write: ', err.message);
-      return;
-    }
-    console.log('Arduino start: ');
+  
+  serialPort.write(JSON.stringify(jsonData) + '\n', (err) => {
+      if (err) {
+          console.error('Error on write: ', err.message);
+          throw err;
+      }
+      console.log('Arduino start');
   });
 
   let buffer = '';
-
-  port.on('data', (data) => {
-    buffer += data.toString(); 
-    let lines = buffer.split('\n'); 
-    for (let i = 0; i < lines.length - 1; i++) {
-      try {
-        const json = JSON.parse(lines[i]); 
-        console.log(json);
-      } catch (err) {
-        console.error('Error parsing JSON: ', err.message);
+  
+  serialPort.on('data', (data) => {
+      buffer += data.toString();
+      
+      let lines = buffer.split('\n');
+      
+      for (let i = 0; i < lines.length - 1; i++) {
+          try {
+              const json = JSON.parse(lines[i]);
+              console.log('Received data:', json);
+              io.emit('sensorData', json);
+          } catch (err) {
+              console.error('Error parsing JSON: ', err.message);
+          }
       }
-    }
+      
+      buffer = lines[lines.length - 1];
+  });
 
-    buffer = lines[lines.length - 1]; 
+  serialPort.on('error', (error) => {
+      console.error('Serial port error:', error);
   });
 }
-
-
 
 
 
@@ -636,11 +766,7 @@ app.post('/api/command', authenticateToken, (req, res) => {
 });
 
 
-// Uruchomienie serwera
-const appPort = process.env.appPort || 4000;
-app.listen(appPort, () => {
-  console.log(`Serwer nasłuchuje na porcie ${appPort}`);
-});
+
 
 mongoose.connect('mongodb://localhost:27017/home_automation')
     .then(() => console.log('Connected to MongoDB'))
