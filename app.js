@@ -343,6 +343,7 @@ function tryToConnect() {
 
       port.on('error', (err) => {
         console.error('Failed to connect');
+        console.log(err);
         reject(false);
       });
 
@@ -400,46 +401,64 @@ async function testConnection() {
 
 async function getDevices() {
   return new Promise((resolve, reject) => {
+      try {
+          let buffer = '';
+          
+          // Usuń poprzednie nasłuchiwanie
+          port.removeAllListeners('data');
+          port.removeAllListeners('error');
+          
+          port.on('error', (err) => {
+              console.error('Failed to connect:', err);
+              reject(false);
+          });
 
-    try {
-      
-      port.on('error', (err) => {
-        console.error('Failed to connect');
-        reject(false);
-      });
+          port.on('data', (chunk) => {
+              try {
+                  buffer += chunk.toString();
+                  
+                  // Sprawdź czy mamy kompletny JSON (kończy się znakiem nowej linii)
+                  if (buffer.includes('\n')) {
+                      let jsonStr = buffer.toString().trim();
+                      console.log('Received data:', jsonStr);
+                      
+                      // Upewnij się, że mamy kompletny JSON z devices
+                      if (jsonStr.includes('"devices"')) {
+                          const jsonData = JSON.parse(jsonStr);
+                          if (jsonData.devices) {
+                              resolve(jsonData.devices);
+                          }
+                      }
+                      buffer = ''; // Wyczyść bufor
+                  }
+              } catch (error) {
+                  console.log('Error parsing data:', error);
+                  console.log('Received buffer:', buffer);
+              }
+          });
 
-      const jsonData = { instruction: "send-devices-list" };
+          // Wyślij żądanie
+          const jsonData = { instruction: "send-devices-list" };
+          port.write(JSON.stringify(jsonData) + '\n', (err) => {
+              if (err) {
+                  console.error('Error writing to port:', err.message);
+                  reject(false);
+              }
+              console.log('Data sent to arduino:', jsonData);
+          });
 
-      port.write(JSON.stringify(jsonData) + '\n', (err) => {
-        if (err) {
-          console.error('Error on write: ', err.message);
-          reject(false); 
-        }
-        console.log('Data sent to arduino:', jsonData);
-      });
+          // Timeout po 5 sekundach
+          setTimeout(() => {
+              port.removeAllListeners('data');
+              if (!buffer.includes('"devices"')) {
+                  reject(false);
+              }
+          }, 5000);
 
-      port.on('data', (data) => {
-        try {
-
-          let jsonData = JSON.parse(data);
-          if (jsonData.devices) {
-
-            resolve(jsonData.devices);
-
-          } else {
-            resolve(false); 
-          }
-        } catch (error) {
-          console.log('failed connection2');
+      } catch (error) {
+          console.log('Failed3:', error);
           reject(false);
-        }
-      });
-    } catch (error) {
-
-      console.log('Failed3');
-      reject(false); 
-
-    }
+      }
   });
 }
 
@@ -515,6 +534,7 @@ app.post('/api/find-devices', authenticateToken, async (req,res) =>{
   } catch (error) {
     res.send({error: error});
     console.log('Failed');
+    console.log(error);
   }finally{
     await port.close();
   }
