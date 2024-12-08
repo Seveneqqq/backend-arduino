@@ -302,30 +302,49 @@ app.post('/api/user-homes', authenticateToken, (req, res)=>{
     }
 });
 
-app.post('/api/home/get-devices', authenticateToken, (req,res)=>{
+app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
+  try {
+      const {home_id} = req.body;
 
-  try{
+      const devices = await new Promise((resolve, reject) => {
+          conn.query(`select * from devices where home_id = ${home_id}`, (err, result) => {
+              if (err) {
+                  reject(err);
+              }
+              resolve(result);
+          });
+      });
 
-    const {home_id} = req.body;
+      const enrichedDevices = await Promise.all(devices.map(async (device) => {
+          if (device.status === 'not-active') {
+              try {
+                  const mongoResponse = await fetch(`http://localhost:4000/api/mongodb/device-protocol/${device.device_id}`, {
+                      headers: {
+                          'Authorization': 'Bearer ' + req.headers.authorization
+                      }
+                  });
 
-    conn.query(`select * from devices where home_id = ${home_id}`, (err, result, fields) => {
+                  if (mongoResponse.ok) {
+                      const protocolData = await mongoResponse.json();
+                      return {
+                          ...device,
+                          protocolData: protocolData
+                      };
+                  }
+              } catch (error) {
+                  console.error('Error fetching MongoDB data:', error);
+              }
+          }
+          return device;
+      }));
 
-      if (err) {
-        console.error('Error while querying the database');
-        return res.status(500).send({ error: 'Database error' });
-      }
+      res.status(200).json(enrichedDevices);
 
-      res.status(200).json(result);
-
-    });
-
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: error.message });
   }
-  catch (error) {
-    console.error(error);
-    res.send({ error: error});
-  }
-
-})
+});
 
 function tryToConnect() {
 

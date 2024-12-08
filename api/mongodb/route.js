@@ -96,4 +96,20 @@ router.post('/add-scenario', async (req, res) => {
     
 });
 
+router.get('/device-protocol/:device_id', async (req, res) => {
+    try {
+        const deviceProtocol = await DeviceProtocol.findOne({ 
+            device_id: req.params.device_id 
+        });
+        
+        if (!deviceProtocol) {
+            return res.status(404).json({ error: 'Protocol configuration not found' });
+        }
+        
+        res.json(deviceProtocol);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;
