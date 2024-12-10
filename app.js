@@ -302,6 +302,7 @@ app.post('/api/user-homes', authenticateToken, (req, res)=>{
     }
 });
 
+
 app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
   try {
       const {home_id} = req.body;
@@ -338,13 +339,33 @@ app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
           return device;
       }));
 
-      res.status(200).json(enrichedDevices);
+      const categoryCount = enrichedDevices.reduce((acc, device) => {
+          if (device.category) {  
+              acc[device.category] = (acc[device.category] || 0) + 1;
+          }
+          return acc;
+      }, {});
+
+      const categoriesArray = Object.entries(categoryCount).map(([category, count]) => ({
+          category,
+          count
+      }));
+
+      res.status(200).json({
+          devices: enrichedDevices,
+          categories: categoriesArray
+      });
 
   } catch (error) {
       console.error('Error:', error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ 
+          error: error.message,
+          devices: [],
+          categories: []
+      });
   }
 });
+
 
 function tryToConnect() {
 
