@@ -302,6 +302,7 @@ app.post('/api/user-homes', authenticateToken, (req, res)=>{
     }
 });
 
+
 app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
   try {
       const {home_id} = req.body;
@@ -338,13 +339,33 @@ app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
           return device;
       }));
 
-      res.status(200).json(enrichedDevices);
+      const categoryCount = enrichedDevices.reduce((acc, device) => {
+          if (device.category) {  
+              acc[device.category] = (acc[device.category] || 0) + 1;
+          }
+          return acc;
+      }, {});
+
+      const categoriesArray = Object.entries(categoryCount).map(([category, count]) => ({
+          category,
+          count
+      }));
+
+      res.status(200).json({
+          devices: enrichedDevices,
+          categories: categoriesArray
+      });
 
   } catch (error) {
       console.error('Error:', error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ 
+          error: error.message,
+          devices: [],
+          categories: []
+      });
   }
 });
+
 
 function tryToConnect() {
 
@@ -483,6 +504,10 @@ async function getDevices() {
 
 
 app.post("/api/home/do", async (req, res) => {
+
+  console.log('odebrano dane');
+  console.log(req.body)
+
   try {
       const { device, actions } = req.body;
 
@@ -679,7 +704,116 @@ app.get('/api/devices-list', authenticateToken, (req, res) => {
 });
 
 
-app.get('/api/home/app-start', async (req, res) => {
+app.get('/api/home/home-info/:home_id', authenticateToken, async (req, res) => {
+  
+  const home_id = req.params.home_id;
+  
+  try {
+    const homeQuery = `
+      SELECT 
+        h.*,
+        o.login as owner_login,
+        o.email as owner_email,
+        o.id as owner_id
+      FROM home h
+      LEFT JOIN users o ON h.owner_id = o.id
+      WHERE h.home_id = ?
+    `;
+
+    const usersQuery = `
+      SELECT 
+        u.id,
+        u.login,
+        u.email
+      FROM users u
+      INNER JOIN users_home uh ON u.id = uh.user_id
+      WHERE uh.home_id = ?
+    `;
+
+    const [homeResult, usersResult] = await Promise.all([
+      new Promise((resolve, reject) => {
+        conn.query(homeQuery, [home_id], (err, result) => {
+          if (err) reject(err);
+          resolve(result);
+        });
+      }),
+      new Promise((resolve, reject) => {
+        conn.query(usersQuery, [home_id], (err, result) => {
+          if (err) reject(err);
+          resolve(result);
+        });
+      })
+    ]);
+
+    if (!homeResult || homeResult.length === 0) {
+      return res.status(404).json({ error: 'Home not found' });
+    }
+
+    const response = [
+      {
+        type: 'home_info',
+        data: {
+          home_id: homeResult[0].home_id,
+          name: homeResult[0].name,
+          home_invite_code: homeResult[0].home_invite_code
+        }
+      },
+      {
+        type: 'owner',
+        data: {
+          id: homeResult[0].owner_id,
+          login: homeResult[0].owner_login,
+          email: homeResult[0].owner_email
+        }
+      },
+      {
+        type: 'users',
+        data: usersResult.map(user => ({
+          id: user.id,
+          login: user.login,
+          email: user.email
+        }))
+      }
+    ];
+
+    res.json(response);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/home/change-name', authenticateToken, async (req, res) => {
+
+  try {
+
+    const {home_id, name} = req.body;
+  
+    const query = `
+      UPDATE home
+      SET name =?
+      WHERE home_id =?
+    `;
+
+    conn.query(query,[name, home_id],(err, result) => {
+      if(err){
+        console.log(err);
+        res.status(500).json({ error: 'Failed to update home name' });
+      }else{
+        res.status(200).json({ message: 'Home name updated successfully' });
+      }
+    })
+
+  }catch(error){
+
+    console.log(error);
+    res.status(500).json({ error: 'Internal server error' });
+
+  }
+})
+
+
+app.get('/api/home/app-start',  async (req, res) => { // authenticateToken,
   try {
       await closeSerialPort();
       await startApp();
