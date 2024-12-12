@@ -705,10 +705,10 @@ app.get('/api/devices-list', authenticateToken, (req, res) => {
 
 
 app.get('/api/home/home-info/:home_id', authenticateToken, async (req, res) => {
+  
   const home_id = req.params.home_id;
   
   try {
-  
     const homeQuery = `
       SELECT 
         h.*,
@@ -719,7 +719,6 @@ app.get('/api/home/home-info/:home_id', authenticateToken, async (req, res) => {
       LEFT JOIN users o ON h.owner_id = o.id
       WHERE h.home_id = ?
     `;
-
 
     const usersQuery = `
       SELECT 
@@ -750,26 +749,34 @@ app.get('/api/home/home-info/:home_id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Home not found' });
     }
 
-    const response = {
-      home_info: {
-        home_id: homeResult[0].home_id,
-        name: homeResult[0].name,
-        home_invite_code: homeResult[0].home_invite_code
+    const response = [
+      {
+        type: 'home_info',
+        data: {
+          home_id: homeResult[0].home_id,
+          name: homeResult[0].name,
+          home_invite_code: homeResult[0].home_invite_code
+        }
       },
-      owner: {
-        id: homeResult[0].owner_id,
-        login: homeResult[0].owner_login,
-        email: homeResult[0].owner_email
+      {
+        type: 'owner',
+        data: {
+          id: homeResult[0].owner_id,
+          login: homeResult[0].owner_login,
+          email: homeResult[0].owner_email
+        }
       },
-      users: usersResult.map(user => ({
-        id: user.id,
-        login: user.login,
-        email: user.email
-      }))
-    };
+      {
+        type: 'users',
+        data: usersResult.map(user => ({
+          id: user.id,
+          login: user.login,
+          email: user.email
+        }))
+      }
+    ];
 
     res.json(response);
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Internal server error' });
