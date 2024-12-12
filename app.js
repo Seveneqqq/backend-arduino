@@ -783,7 +783,34 @@ app.get('/api/home/home-info/:home_id', authenticateToken, async (req, res) => {
   }
 });
 
+app.post('/api/home/change-name', authenticateToken, async (req, res) => {
 
+  try {
+
+    const {home_id, name} = req.body;
+  
+    const query = `
+      UPDATE home
+      SET name =?
+      WHERE home_id =?
+    `;
+
+    conn.query(query,[name, home_id],(err, result) => {
+      if(err){
+        console.log(err);
+        res.status(500).json({ error: 'Failed to update home name' });
+      }else{
+        res.status(200).json({ message: 'Home name updated successfully' });
+      }
+    })
+
+  }catch(error){
+
+    console.log(error);
+    res.status(500).json({ error: 'Internal server error' });
+
+  }
+})
 
 
 app.get('/api/home/app-start',  async (req, res) => { // authenticateToken,
