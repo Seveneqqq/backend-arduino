@@ -783,6 +783,61 @@ app.get('/api/home/home-info/:home_id', authenticateToken, async (req, res) => {
   }
 });
 
+app.get(`/api/account/:user_id`, authenticateToken, async(req,res) => { 
+  const user_id = req.params.user_id;
+
+  try {
+      const query1 = `
+          SELECT login, email 
+          FROM users 
+          WHERE id = ? 
+          LIMIT 1
+      `;
+
+      const query2 = `
+          SELECT home.* 
+          FROM home, users_home 
+          WHERE users_home.user_id = ? 
+          AND users_home.home_id = home.home_id
+      `;
+
+      const getUserData = () => {
+          return new Promise((resolve, reject) => {
+              conn.query(query1, user_id, (err, userData) => {
+                  if (err) reject(err);
+                  resolve(userData[0]);
+              });
+          });
+      };
+
+      const getHomeData = () => {
+          return new Promise((resolve, reject) => {
+              conn.query(query2, user_id, (err, homeData) => {
+                  if (err) reject(err);
+                  resolve(homeData);
+              });
+          });
+      };
+
+      Promise.all([getUserData(), getHomeData()])
+          .then(([userData, homeData]) => {
+              const combinedData = {
+                  ...userData,
+                  homes: homeData
+              };
+              res.status(200).json(combinedData);
+          })
+          .catch(error => {
+              console.error(error);
+              res.status(500).json({ error: 'Failed to get user data' });
+          });
+
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/home/change-name', authenticateToken, async (req, res) => {
 
   try {
