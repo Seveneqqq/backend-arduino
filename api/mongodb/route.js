@@ -64,36 +64,37 @@ router.post('/add-device-protocol', async (req, res) => {
 });
 
 router.post('/add-scenario', async (req, res) => {
-
     try {
-
         console.log(req.body);
-
-        const {name, home_id, devices} = req.body;
-        const {scenarioTurnOn,scenarioTurnOff} = req.body || null;
-
-        
+        const { name, home_id, devices } = req.body;
+        const { scenarioTurnOn, scenarioTurnOff } = req.body || {};
 
         const newScenario = new Scenario({
             name,
             home_id,
-            scenarioTurnOn,
-            scenarioTurnOff,
+            scenarioTurnOn: scenarioTurnOn || null,
+            scenarioTurnOff: scenarioTurnOff || null,
             devices: devices.map(device => ({
                 device_id: device.device_id,
-                device_name: device.device_name,
+                name: device.name,
+                label: device.label,
+                room_id: device.room_id,
+                category: device.category,
+                command_on: device.command_on,
+                command_off: device.command_off,
                 status: device.status,
-                additional_options: device.additional_options || {} 
+                actions: device.actions,
+                protocolData: device.protocolData || null
             }))
         });
 
         const savedScenario = await newScenario.save();
         res.status(200).json(savedScenario);
-        
+
     } catch (error) {
+        console.error('Error adding scenario:', error);
         res.status(400).json({ error: error.message });
     }
-    
 });
 
 router.get('/device-protocol/:device_id', async (req, res) => {
