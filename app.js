@@ -783,6 +783,61 @@ app.get('/api/home/home-info/:home_id', authenticateToken, async (req, res) => {
   }
 });
 
+app.post(`/api/account/change-password`, authenticateToken, async (req, res) => {
+  
+  const user_id = req.user.id;
+  const currentPassword = req.body.currentPassword;
+  const newPassword = req.body.newPassword;
+
+  try {
+
+      const verifyQuery = `
+          SELECT password 
+          FROM users 
+          WHERE id = ? 
+          LIMIT 1
+      `;
+
+      conn.query(verifyQuery, [user_id], async (err, results) => {
+          if (err) {
+              console.error('Database error:', err);
+              return res.status(500).json({ error: 'Internal server error' });
+          }
+
+          if (results.length === 0) {
+              return res.status(404).json({ error: 'User not found' });
+          }
+
+          if (results[0].password !== currentPassword) {
+              return res.status(401).json({ error: 'Current password is incorrect' });
+          }
+
+          const updateQuery = `
+              UPDATE users 
+              SET password = ? 
+              WHERE id = ?
+          `;
+
+          conn.query(updateQuery, [newPassword, user_id], (updateErr, updateResult) => {
+              if (updateErr) {
+                  console.error('Database error:', updateErr);
+                  return res.status(500).json({ error: 'Failed to update password' });
+              }
+
+              if (updateResult.affectedRows === 0) {
+                  return res.status(404).json({ error: 'User not found' });
+              }
+
+              res.status(200).json({ message: 'Password updated successfully' });
+          });
+      });
+
+  } catch (error) {
+      console.error('Server error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get(`/api/account/:user_id`, authenticateToken, async(req,res) => { 
   const user_id = req.params.user_id;
 
