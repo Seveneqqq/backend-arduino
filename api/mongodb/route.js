@@ -69,6 +69,7 @@ router.post('/add-scenario', async (req, res) => {
         const { name, home_id, devices } = req.body;
         const { scenarioTurnOn, scenarioTurnOff } = req.body || {};
 
+        
         const newScenario = new Scenario({
             name,
             home_id,
