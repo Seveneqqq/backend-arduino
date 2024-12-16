@@ -195,8 +195,8 @@ app.post('/api/register', (req, res) => {
 
         console.log(result);
 
-        const token = jwt.sign({ id: result[0].id, login: result[0].login }, secretKey, { expiresIn: '1h' });
-        res.send({ success: 'Success, user created', token: token, user: result[0].id });
+        const token = jwt.sign({ id: result.insertId, login: email }, secretKey, { expiresIn: '1h' });
+        res.status(200).json({ success: 'Success, user created', token: token, user: result.insertId });
       });
     }
 
@@ -921,7 +921,56 @@ app.post('/api/home/change-name', authenticateToken, async (req, res) => {
 
   }
 })
+app.post('/api/account/leave-home', async (req, res) => {
 
+  const {home_id, user_id} = req.body;
+
+  try {
+      
+      const checkOwnerQuery = `
+          SELECT owner_id 
+          FROM home 
+          WHERE home_id = ?
+      `;
+
+      conn.query(checkOwnerQuery, [home_id], (error, ownerResults) => {
+          if (error) {
+              console.error('Database error:', error);
+              return res.status(500).json({ error: 'Internal server error' });
+          }
+
+          if (ownerResults.length === 0) {
+              return res.status(404).json({ error: 'Home not found' });
+          }
+
+          if (ownerResults[0].owner_id === parseInt(user_id)) {
+              return res.status(403).json({ error: 'Owner cannot leave their home' });
+          }
+
+          const deleteQuery = `
+              DELETE FROM users_home 
+              WHERE home_id = ? AND user_id = ?
+          `;
+
+          conn.query(deleteQuery, [home_id, user_id], (deleteError, deleteResult) => {
+              if (deleteError) {
+                  console.error('Database error:', deleteError);
+                  return res.status(500).json({ error: 'Failed to remove user from home' });
+              }
+
+              if (deleteResult.affectedRows === 0) {
+                  return res.status(404).json({ error: 'User is not a member of this home' });
+              }
+
+              res.status(200).json({ message: 'Successfully left the home' });
+          });
+      });
+
+  } catch (error) {
+      console.error('Server error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 app.get('/api/home/app-start',  async (req, res) => { // authenticateToken,
   try {
@@ -983,6 +1032,8 @@ async function startApp() {
       console.error('Serial port error:', error);
   });
 }
+
+
 
 
 
