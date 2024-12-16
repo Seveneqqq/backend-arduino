@@ -195,8 +195,8 @@ app.post('/api/register', (req, res) => {
 
         console.log(result);
 
-        const token = jwt.sign({ id: result[0].id, login: result[0].login }, secretKey, { expiresIn: '1h' });
-        res.send({ success: 'Success, user created', token: token, user: result[0].id });
+        const token = jwt.sign({ id: result.insertId, login: email }, secretKey, { expiresIn: '1h' });
+        res.status(200).json({ success: 'Success, user created', token: token, user: result.insertId });
       });
     }
 
@@ -503,53 +503,92 @@ async function getDevices() {
 }
 
 
-app.post("/api/home/do", async (req, res) => {
 
-  console.log('odebrano dane');
-  console.log(req.body)
+
+
+
+
+
+
+
+
+app.post("/api/home/do", async (req, res) => {
+  console.log('Odebrano dane');
+  console.log(req.body);
 
   try {
       const { device, actions } = req.body;
 
       if (device.status === "active") {
           if (!port || !port.isOpen) {
-              port = new SerialPort.SerialPort({
-                  path: "COM3",
-                  baudRate: 9600,
-                  dataBits: 8,
-                  parity: "none",
-                  stopBits: 1,
-                  flowControl: false,
-              });
+            port = new SerialPort.SerialPort({
+              path: "COM3",
+              baudRate: 9600,
+              dataBits: 8,
+              parity: "none",
+              stopBits: 1,
+              flowControl: false,
+              autoOpen: false
+          });
 
               port.on("error", (err) => {
-                  console.error("Failed to connect");
+                  console.error("Błąd portu szeregowego:", err.message);
+              });
+
+              await new Promise((resolve, reject) => {
+                  port.open((err) => {
+                      if (err) {
+                          reject("Nie udało się otworzyć portu: " + err.message);
+                      } else {
+                          console.log("Port szeregowy otwarty");
+                          resolve();
+                      }
+                  });
               });
           }
 
-          const jsonData = { 
-              instruction: "device-control", 
-              device: device.deviceName, 
-              actions: actions 
+          const jsonData = {
+              instruction: "device-control",
+              device: device.deviceName,
+              actions: actions
           };
 
-          await port.write(JSON.stringify(jsonData) + "\n", (err) => {
-              if (err) {
-                  console.error("Error on write: ", err.message);
-              }
-              console.log("Data sent to arduino:", jsonData);
+          await new Promise((resolve, reject) => {
+              port.write(JSON.stringify(jsonData) + "\n", (err) => {
+                  if (err) {
+                      reject("Błąd podczas zapisu: " + err.message);
+                  } else {
+                      console.log("Dane wysłane do Arduino:", jsonData);
+                      resolve();
+                  }
+              });
           });
 
           res.send(req.body);
+
+          await new Promise((resolve, reject) => {
+              port.close((err) => {
+                  if (err) {
+                      reject("Błąd podczas zamykania portu: " + err.message);
+                  } else {
+                      console.log("Port szeregowy zamknięty");
+                      resolve();
+                  }
+              });
+          });
+
       } else {
-          //todo: wyslanie w zaleznosci od tego co urzadzenie posiada (http, zigbee itp)
+          // TODO: obsługa innych typów urządzeń (HTTP, Zigbee itp.)
           res.send(req.body);
       }
   } catch (err) {
-      console.error(err);
-      res.send({ error: "An error occurred" });
+      console.error("Wystąpił błąd:", err);
+      res.status(500).send({ error: "Wystąpił błąd" });
   }
 });
+
+
+
 
 
 
@@ -783,6 +822,116 @@ app.get('/api/home/home-info/:home_id', authenticateToken, async (req, res) => {
   }
 });
 
+app.post(`/api/account/change-password`, authenticateToken, async (req, res) => {
+  
+  const user_id = req.user.id;
+  const currentPassword = req.body.currentPassword;
+  const newPassword = req.body.newPassword;
+
+  try {
+
+      const verifyQuery = `
+          SELECT password 
+          FROM users 
+          WHERE id = ? 
+          LIMIT 1
+      `;
+
+      conn.query(verifyQuery, [user_id], async (err, results) => {
+          if (err) {
+              console.error('Database error:', err);
+              return res.status(500).json({ error: 'Internal server error' });
+          }
+
+          if (results.length === 0) {
+              return res.status(404).json({ error: 'User not found' });
+          }
+
+          if (results[0].password !== currentPassword) {
+              return res.status(401).json({ error: 'Current password is incorrect' });
+          }
+
+          const updateQuery = `
+              UPDATE users 
+              SET password = ? 
+              WHERE id = ?
+          `;
+
+          conn.query(updateQuery, [newPassword, user_id], (updateErr, updateResult) => {
+              if (updateErr) {
+                  console.error('Database error:', updateErr);
+                  return res.status(500).json({ error: 'Failed to update password' });
+              }
+
+              if (updateResult.affectedRows === 0) {
+                  return res.status(404).json({ error: 'User not found' });
+              }
+
+              res.status(200).json({ message: 'Password updated successfully' });
+          });
+      });
+
+  } catch (error) {
+      console.error('Server error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get(`/api/account/:user_id`, authenticateToken, async(req,res) => { 
+  const user_id = req.params.user_id;
+
+  try {
+      const query1 = `
+          SELECT login, email 
+          FROM users 
+          WHERE id = ? 
+          LIMIT 1
+      `;
+
+      const query2 = `
+          SELECT home.* 
+          FROM home, users_home 
+          WHERE users_home.user_id = ? 
+          AND users_home.home_id = home.home_id
+      `;
+
+      const getUserData = () => {
+          return new Promise((resolve, reject) => {
+              conn.query(query1, user_id, (err, userData) => {
+                  if (err) reject(err);
+                  resolve(userData[0]);
+              });
+          });
+      };
+
+      const getHomeData = () => {
+          return new Promise((resolve, reject) => {
+              conn.query(query2, user_id, (err, homeData) => {
+                  if (err) reject(err);
+                  resolve(homeData);
+              });
+          });
+      };
+
+      Promise.all([getUserData(), getHomeData()])
+          .then(([userData, homeData]) => {
+              const combinedData = {
+                  ...userData,
+                  homes: homeData
+              };
+              res.status(200).json(combinedData);
+          })
+          .catch(error => {
+              console.error(error);
+              res.status(500).json({ error: 'Failed to get user data' });
+          });
+
+  } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.post('/api/home/change-name', authenticateToken, async (req, res) => {
 
   try {
@@ -812,6 +961,160 @@ app.post('/api/home/change-name', authenticateToken, async (req, res) => {
   }
 })
 
+
+
+
+
+app.post('/api/automation/toggle', authenticateToken, async (req, res) => {
+  const { scenario_id, state, devices } = req.body;
+
+  try {
+
+      if (serialPort && serialPort.isOpen) {
+          await new Promise((resolve, reject) => {
+              serialPort.close((err) => {
+                  if (err) {
+                      console.error('Błąd podczas zamykania portu:', err.message);
+                      reject(err);
+                  } else {
+                      console.log('Port szeregowy zamknięty');
+                      resolve();
+                  }
+              });
+          });
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      serialPort = new SerialPort.SerialPort({
+          path: 'COM3',
+          baudRate: 9600,
+          dataBits: 8,
+          parity: 'none',
+          stopBits: 1,
+          flowControl: false,
+          autoOpen: false
+      });
+
+      serialPort.on('error', (err) => {
+          console.error('Błąd portu szeregowego:', err.message);
+      });
+
+      await new Promise((resolve, reject) => {
+          serialPort.open((err) => {
+              if (err) {
+                  console.error('Nie udało się otworzyć portu:', err.message);
+                  reject(err);
+              } else {
+                  console.log('Port szeregowy otwarty');
+                  resolve();
+              }
+          });
+      });
+
+      const activeDevices = devices
+          .filter(device => device.status === 'active')
+          .map(device => ({
+              name: device.name,
+              actions: {
+                  state: device.actions.state ? 1 : 0,
+                  brightness: device.actions.brightness || 100
+              }
+          }));
+
+      const jsonData = {
+          instruction: 'scenario',
+          state: state,
+          devices: activeDevices
+      };
+
+      await new Promise((resolve, reject) => {
+          serialPort.write(JSON.stringify(jsonData) + '\n', (err) => {
+              if (err) {
+                  console.error('Błąd podczas zapisu:', err.message);
+                  reject(err);
+              } else {
+                  console.log('Dane scenariusza wysłane:', jsonData);
+                  resolve();
+              }
+          });
+      });
+
+      await new Promise((resolve, reject) => {
+          serialPort.close((err) => {
+              if (err) {
+                  console.error('Błąd podczas zamykania portu:', err.message);
+                  reject(err);
+              } else {
+                  console.log('Port szeregowy zamknięty');
+                  resolve();
+              }
+          });
+      });
+
+      res.status(200).json({ message: 'Pomyślnie przełączono scenariusz' });
+  } catch (error) {
+      console.error('Błąd w toggle automation:', error);
+      res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
+
+
+
+
+
+
+app.post('/api/account/leave-home', authenticateToken, async (req, res) => {
+
+  const {home_id, user_id} = req.body;
+
+  try {
+      
+      const checkOwnerQuery = `
+          SELECT owner_id 
+          FROM home 
+          WHERE home_id = ?
+      `;
+
+      conn.query(checkOwnerQuery, [home_id], (error, ownerResults) => {
+          if (error) {
+              console.error('Database error:', error);
+              return res.status(500).json({ error: 'Internal server error' });
+          }
+
+          if (ownerResults.length === 0) {
+              return res.status(404).json({ error: 'Home not found' });
+          }
+
+          if (ownerResults[0].owner_id === parseInt(user_id)) {
+              return res.status(403).json({ error: 'Owner cannot leave their home' });
+          }
+
+          const deleteQuery = `
+              DELETE FROM users_home 
+              WHERE home_id = ? AND user_id = ?
+          `;
+
+          conn.query(deleteQuery, [home_id, user_id], (deleteError, deleteResult) => {
+              if (deleteError) {
+                  console.error('Database error:', deleteError);
+                  return res.status(500).json({ error: 'Failed to remove user from home' });
+              }
+
+              if (deleteResult.affectedRows === 0) {
+                  return res.status(404).json({ error: 'User is not a member of this home' });
+              }
+
+              res.status(200).json({ message: 'Successfully left the home' });
+          });
+      });
+
+  } catch (error) {
+      console.error('Server error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 app.get('/api/home/app-start',  async (req, res) => { // authenticateToken,
   try {
@@ -873,6 +1176,8 @@ async function startApp() {
       console.error('Serial port error:', error);
   });
 }
+
+
 
 
 

@@ -9,34 +9,91 @@ const scenarioSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         required: true
     },
-    scenarioTurnOn:{
+    scenarioTurnOn: {
         type: String,
         required: false
     },
-    scenarioTurnOff:{
+    scenarioTurnOff: {
         type: String,
         required: false
     },
     devices: [{
         device_id: {
+            type: Number,
+            required: true
+        },
+        name: {
             type: String,
             required: true
         },
-        device_name: {
+        label: {
+            type: String,
+            required: true
+        },
+        room_id: {
+            type: Number,
+            required: true
+        },
+        category: {
+            type: String,
+            required: true
+        },
+        command_on: {
+            type: String,
+            required: true
+        },
+        command_off: {
             type: String,
             required: true
         },
         status: {
-            type: Boolean,
+            type: String,
+            enum: ['active', 'not-active'],
             required: true
         },
-        additional_options: {
+        actions: {
             type: mongoose.Schema.Types.Mixed,
+            required: true
+        },
+        protocolData: {
+            type: {
+                protocol_type: {
+                    type: String,
+                    enum: ['Zigbee', 'Wifi', 'Bluetooth', 'Z-Wave', 'MQTT']
+                },
+                zigbee: {
+                    zigbeeId: String,
+                    zigbeeChannel: String,
+                    zigbeeGroupId: String,
+                    zigbeeHub: String
+                },
+                wifi: {
+                    ipAddress: String,
+                    macAddress: String,
+                    ssid: String,
+                    password: String
+                },
+                bluetooth: {
+                    bleUuid: String,
+                    bleConnection: String
+                },
+                zwave: {
+                    zwaveDeviceId: String,
+                    zwaveNetworkKey: String,
+                    zwaveGroupId: String
+                },
+                mqtt: {
+                    mqttBrokerUrl: String,
+                    mqttTopicOn: String,
+                    mqttTopicOff: String,
+                    mqttDeviceId: String
+                }
+            },
             required: false
         }
     }]
 }, {
-    timestamps: true 
+    timestamps: true
 });
 
 const deviceProtocolSchema = new mongoose.Schema({
