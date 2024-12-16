@@ -503,53 +503,92 @@ async function getDevices() {
 }
 
 
-app.post("/api/home/do", async (req, res) => {
 
-  console.log('odebrano dane');
-  console.log(req.body)
+
+
+
+
+
+
+
+
+app.post("/api/home/do", async (req, res) => {
+  console.log('Odebrano dane');
+  console.log(req.body);
 
   try {
       const { device, actions } = req.body;
 
       if (device.status === "active") {
           if (!port || !port.isOpen) {
-              port = new SerialPort.SerialPort({
-                  path: "COM3",
-                  baudRate: 9600,
-                  dataBits: 8,
-                  parity: "none",
-                  stopBits: 1,
-                  flowControl: false,
-              });
+            port = new SerialPort.SerialPort({
+              path: "COM3",
+              baudRate: 9600,
+              dataBits: 8,
+              parity: "none",
+              stopBits: 1,
+              flowControl: false,
+              autoOpen: false
+          });
 
               port.on("error", (err) => {
-                  console.error("Failed to connect");
+                  console.error("Błąd portu szeregowego:", err.message);
+              });
+
+              await new Promise((resolve, reject) => {
+                  port.open((err) => {
+                      if (err) {
+                          reject("Nie udało się otworzyć portu: " + err.message);
+                      } else {
+                          console.log("Port szeregowy otwarty");
+                          resolve();
+                      }
+                  });
               });
           }
 
-          const jsonData = { 
-              instruction: "device-control", 
-              device: device.deviceName, 
-              actions: actions 
+          const jsonData = {
+              instruction: "device-control",
+              device: device.deviceName,
+              actions: actions
           };
 
-          await port.write(JSON.stringify(jsonData) + "\n", (err) => {
-              if (err) {
-                  console.error("Error on write: ", err.message);
-              }
-              console.log("Data sent to arduino:", jsonData);
+          await new Promise((resolve, reject) => {
+              port.write(JSON.stringify(jsonData) + "\n", (err) => {
+                  if (err) {
+                      reject("Błąd podczas zapisu: " + err.message);
+                  } else {
+                      console.log("Dane wysłane do Arduino:", jsonData);
+                      resolve();
+                  }
+              });
           });
 
           res.send(req.body);
+
+          await new Promise((resolve, reject) => {
+              port.close((err) => {
+                  if (err) {
+                      reject("Błąd podczas zamykania portu: " + err.message);
+                  } else {
+                      console.log("Port szeregowy zamknięty");
+                      resolve();
+                  }
+              });
+          });
+
       } else {
-          //todo: wyslanie w zaleznosci od tego co urzadzenie posiada (http, zigbee itp)
+          // TODO: obsługa innych typów urządzeń (HTTP, Zigbee itp.)
           res.send(req.body);
       }
   } catch (err) {
-      console.error(err);
-      res.send({ error: "An error occurred" });
+      console.error("Wystąpił błąd:", err);
+      res.status(500).send({ error: "Wystąpił błąd" });
   }
 });
+
+
+
 
 
 
@@ -921,7 +960,112 @@ app.post('/api/home/change-name', authenticateToken, async (req, res) => {
 
   }
 })
-app.post('/api/account/leave-home', async (req, res) => {
+
+
+
+
+
+app.post('/api/automation/toggle', authenticateToken, async (req, res) => {
+  const { scenario_id, state, devices } = req.body;
+
+  try {
+
+      if (serialPort && serialPort.isOpen) {
+          await new Promise((resolve, reject) => {
+              serialPort.close((err) => {
+                  if (err) {
+                      console.error('Błąd podczas zamykania portu:', err.message);
+                      reject(err);
+                  } else {
+                      console.log('Port szeregowy zamknięty');
+                      resolve();
+                  }
+              });
+          });
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      serialPort = new SerialPort.SerialPort({
+          path: 'COM3',
+          baudRate: 9600,
+          dataBits: 8,
+          parity: 'none',
+          stopBits: 1,
+          flowControl: false,
+          autoOpen: false
+      });
+
+      serialPort.on('error', (err) => {
+          console.error('Błąd portu szeregowego:', err.message);
+      });
+
+      await new Promise((resolve, reject) => {
+          serialPort.open((err) => {
+              if (err) {
+                  console.error('Nie udało się otworzyć portu:', err.message);
+                  reject(err);
+              } else {
+                  console.log('Port szeregowy otwarty');
+                  resolve();
+              }
+          });
+      });
+
+      const activeDevices = devices
+          .filter(device => device.status === 'active')
+          .map(device => ({
+              name: device.name,
+              actions: {
+                  state: device.actions.state ? 1 : 0,
+                  brightness: device.actions.brightness || 100
+              }
+          }));
+
+      const jsonData = {
+          instruction: 'scenario',
+          state: state,
+          devices: activeDevices
+      };
+
+      await new Promise((resolve, reject) => {
+          serialPort.write(JSON.stringify(jsonData) + '\n', (err) => {
+              if (err) {
+                  console.error('Błąd podczas zapisu:', err.message);
+                  reject(err);
+              } else {
+                  console.log('Dane scenariusza wysłane:', jsonData);
+                  resolve();
+              }
+          });
+      });
+
+      await new Promise((resolve, reject) => {
+          serialPort.close((err) => {
+              if (err) {
+                  console.error('Błąd podczas zamykania portu:', err.message);
+                  reject(err);
+              } else {
+                  console.log('Port szeregowy zamknięty');
+                  resolve();
+              }
+          });
+      });
+
+      res.status(200).json({ message: 'Pomyślnie przełączono scenariusz' });
+  } catch (error) {
+      console.error('Błąd w toggle automation:', error);
+      res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
+
+
+
+
+
+
+app.post('/api/account/leave-home', authenticateToken, async (req, res) => {
 
   const {home_id, user_id} = req.body;
 
