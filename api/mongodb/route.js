@@ -13,6 +13,22 @@ router.get('/', async (req, res) => {
 
 });
 
+router.get('/scenarios/:home_id', async (req, res) => {
+
+    const homeId = req.params.home_id; 
+    
+    if (isNaN(homeId)) {
+        return res.status(400).json({ error: 'Invalid home_id parameter' });
+    }
+
+    try {
+        const scenarios = await Scenario.find({ home_id: homeId });
+        res.json(scenarios);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 router.post('/add-device-protocol', async (req, res) => {
     
     try {
