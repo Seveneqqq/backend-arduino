@@ -212,6 +212,134 @@ app.post('/api/register', (req, res) => {
 
 });
 
+app.post('/api/tasks/add', authenticateToken, async (req, res) => {
+
+    const { home_id, user_id, topic, content } = req.body;
+
+    try {
+        const query = `
+            INSERT INTO tasks (home_id, user_id, topic, content, isCompleted) 
+            VALUES (?, ?, ?, ?, false)
+        `;
+
+        conn.query(query, [home_id, user_id, topic, content], (err, result) => {
+            if (err) {
+                console.error('Error adding task:', err);
+                return res.status(500).json({ error: 'Failed to add task' });
+            }
+            res.status(200).json({ 
+                success: true, 
+                task_id: result.insertId,
+                message: 'Task added successfully' 
+            });
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/tasks/:home_id', authenticateToken, (req, res) => {
+
+    const home_id = req.params.home_id;
+
+    const query = `
+        SELECT t.*, u.email as user_email 
+        FROM tasks t
+        JOIN users u ON t.user_id = u.id
+        WHERE t.home_id = ?
+        ORDER BY t.id DESC
+    `;
+
+    conn.query(query, [home_id], (err, results) => {
+        if (err) {
+            console.error('Error fetching tasks:', err);
+            return res.status(500).json({ error: 'Failed to fetch tasks' });
+        }
+        res.json(results);
+    });
+});
+
+app.post('/api/tasks/:task_id/complete', authenticateToken, (req, res) => {
+  
+    const task_id = req.params.task_id;
+
+    const query = `
+        UPDATE tasks 
+        SET isCompleted = true 
+        WHERE id = ?
+    `;
+
+    conn.query(query, [task_id], (err, result) => {
+        if (err) {
+            console.error('Error completing task:', err);
+            return res.status(500).json({ error: 'Failed to complete task' });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Task not found' });
+        }
+
+        res.json({ success: true, message: 'Task marked as completed' });
+    });
+});
+
+app.delete('/api/tasks/:task_id', authenticateToken, (req, res) => {
+
+    const task_id = req.params.task_id;
+    const user_id = req.body.user_id;
+
+    const checkQuery = `
+        SELECT user_id, home_id
+        FROM tasks
+        WHERE id = ?
+    `;
+
+    conn.query(checkQuery, [task_id], (err, results) => {
+        if (err) {
+            console.error('Error checking task:', err);
+            return res.status(500).json({ error: 'Failed to check task' });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'Task not found' });
+        }
+
+        const task = results[0];
+
+        const ownershipQuery = `
+            SELECT owner_id 
+            FROM home 
+            WHERE home_id = ?
+        `;
+
+        conn.query(ownershipQuery, [task.home_id], (err, homeResults) => {
+            if (err) {
+                console.error('Error checking ownership:', err);
+                return res.status(500).json({ error: 'Failed to check ownership' });
+            }
+
+            const isOwner = homeResults[0]?.owner_id === user_id;
+            const isTaskCreator = task.user_id === user_id;
+
+            if (!isOwner && !isTaskCreator) {
+                return res.status(403).json({ error: 'Not authorized to delete this task' });
+            }
+
+            const deleteQuery = `DELETE FROM tasks WHERE id = ?`;
+            conn.query(deleteQuery, [task_id], (err, result) => {
+                if (err) {
+                    console.error('Error deleting task:', err);
+                    return res.status(500).json({ error: 'Failed to delete task' });
+                }
+
+                res.json({ success: true, message: 'Task deleted successfully' });
+            });
+        });
+    });
+});
+
+
 app.post('/api/new-home', authenticateToken, (req,res) =>{
   
   console.log('Tworzenie domu');
