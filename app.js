@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const SerialPort = require('serialport');
 const mongoDatabaseRoutes = require('./api/mongodb/route');
+const assistantRoutes = require('./api/assistant/route');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -108,6 +109,7 @@ app.use((req, res, next) => {
 
 
 app.use('/api/mongodb',  mongoDatabaseRoutes); // dodać authenticateToken,
+app.use('/api/assistant', assistantRoutes); // dodać authenticateToken,
 
 app.post('/api/login', (req, res) => {
 
