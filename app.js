@@ -261,7 +261,7 @@ app.get('/api/tasks/:home_id', authenticateToken, (req, res) => {
 });
 
 app.post('/api/tasks/:task_id/complete', authenticateToken, (req, res) => {
-  
+
     const task_id = req.params.task_id;
 
     const query = `
@@ -285,58 +285,18 @@ app.post('/api/tasks/:task_id/complete', authenticateToken, (req, res) => {
 });
 
 app.delete('/api/tasks/:task_id', authenticateToken, (req, res) => {
-
-    const task_id = req.params.task_id;
-    const user_id = req.body.user_id;
-
-    const checkQuery = `
-        SELECT user_id, home_id
-        FROM tasks
-        WHERE id = ?
-    `;
-
-    conn.query(checkQuery, [task_id], (err, results) => {
-        if (err) {
-            console.error('Error checking task:', err);
-            return res.status(500).json({ error: 'Failed to check task' });
-        }
-
-        if (results.length === 0) {
-            return res.status(404).json({ error: 'Task not found' });
-        }
-
-        const task = results[0];
-
-        const ownershipQuery = `
-            SELECT owner_id 
-            FROM home 
-            WHERE home_id = ?
-        `;
-
-        conn.query(ownershipQuery, [task.home_id], (err, homeResults) => {
-            if (err) {
-                console.error('Error checking ownership:', err);
-                return res.status(500).json({ error: 'Failed to check ownership' });
-            }
-
-            const isOwner = homeResults[0]?.owner_id === user_id;
-            const isTaskCreator = task.user_id === user_id;
-
-            if (!isOwner && !isTaskCreator) {
-                return res.status(403).json({ error: 'Not authorized to delete this task' });
-            }
-
-            const deleteQuery = `DELETE FROM tasks WHERE id = ?`;
-            conn.query(deleteQuery, [task_id], (err, result) => {
-                if (err) {
-                    console.error('Error deleting task:', err);
-                    return res.status(500).json({ error: 'Failed to delete task' });
-                }
-
-                res.json({ success: true, message: 'Task deleted successfully' });
-            });
-        });
-    });
+  
+   const task_id = req.params.task_id;
+   
+   const deleteQuery = `DELETE FROM tasks WHERE id = ?`;
+   conn.query(deleteQuery, [task_id], (err, result) => {
+       if (err) {
+           console.error('Error deleting task:', err);
+           return res.status(500).json({ error: 'Failed to delete task' });
+       }
+       
+       res.json({ success: true, message: 'Task deleted successfully' });
+   });
 });
 
 
