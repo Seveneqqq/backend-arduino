@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const SerialPort = require('serialport');
 const mongoDatabaseRoutes = require('./api/mongodb/route');
+const assistantRoutes = require('./api/assistant/route');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -31,6 +32,8 @@ const io = require('socket.io')(server, {
 let activeSocket = null;
 let serialPort = null;
 let thisHomeDevices
+
+const serialPortManager = require('./SerialPortManager');
 
 io.on('connection', (socket) => {
   console.log('Client connected');
@@ -106,6 +109,7 @@ app.use((req, res, next) => {
 
 
 app.use('/api/mongodb',  mongoDatabaseRoutes); // dodać authenticateToken,
+app.use('/api/assistant', assistantRoutes); // dodać authenticateToken,
 
 app.post('/api/login', (req, res) => {
 
@@ -207,6 +211,94 @@ app.post('/api/register', (req, res) => {
     }
 
 });
+
+app.post('/api/tasks/add', authenticateToken, async (req, res) => {
+
+    const { home_id, user_id, topic, content } = req.body;
+
+    try {
+        const query = `
+            INSERT INTO tasks (home_id, user_id, topic, content, isCompleted) 
+            VALUES (?, ?, ?, ?, false)
+        `;
+
+        conn.query(query, [home_id, user_id, topic, content], (err, result) => {
+            if (err) {
+                console.error('Error adding task:', err);
+                return res.status(500).json({ error: 'Failed to add task' });
+            }
+            res.status(200).json({ 
+                success: true, 
+                task_id: result.insertId,
+                message: 'Task added successfully' 
+            });
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.get('/api/tasks/:home_id', authenticateToken, (req, res) => {
+
+    const home_id = req.params.home_id;
+
+    const query = `
+        SELECT t.*, u.email as user_email 
+        FROM tasks t
+        JOIN users u ON t.user_id = u.id
+        WHERE t.home_id = ?
+        ORDER BY t.id DESC
+    `;
+
+    conn.query(query, [home_id], (err, results) => {
+        if (err) {
+            console.error('Error fetching tasks:', err);
+            return res.status(500).json({ error: 'Failed to fetch tasks' });
+        }
+        res.json(results);
+    });
+});
+
+app.post('/api/tasks/:task_id/complete', authenticateToken, (req, res) => {
+
+    const task_id = req.params.task_id;
+
+    const query = `
+        UPDATE tasks 
+        SET isCompleted = true 
+        WHERE id = ?
+    `;
+
+    conn.query(query, [task_id], (err, result) => {
+        if (err) {
+            console.error('Error completing task:', err);
+            return res.status(500).json({ error: 'Failed to complete task' });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Task not found' });
+        }
+
+        res.json({ success: true, message: 'Task marked as completed' });
+    });
+});
+
+app.delete('/api/tasks/:task_id', authenticateToken, (req, res) => {
+  
+   const task_id = req.params.task_id;
+   
+   const deleteQuery = `DELETE FROM tasks WHERE id = ?`;
+   conn.query(deleteQuery, [task_id], (err, result) => {
+       if (err) {
+           console.error('Error deleting task:', err);
+           return res.status(500).json({ error: 'Failed to delete task' });
+       }
+       
+       res.json({ success: true, message: 'Task deleted successfully' });
+   });
+});
+
 
 app.post('/api/new-home', authenticateToken, (req,res) =>{
   
@@ -511,83 +603,38 @@ async function getDevices() {
 
 
 
-
 app.post("/api/home/do", async (req, res) => {
-  console.log('Odebrano dane');
-  console.log(req.body);
-
   try {
       const { device, actions } = req.body;
 
       if (device.status === "active") {
-          if (!port || !port.isOpen) {
-            port = new SerialPort.SerialPort({
-              path: "COM3",
-              baudRate: 9600,
-              dataBits: 8,
-              parity: "none",
-              stopBits: 1,
-              flowControl: false,
-              autoOpen: false
-          });
-
-              port.on("error", (err) => {
-                  console.error("Błąd portu szeregowego:", err.message);
-              });
-
-              await new Promise((resolve, reject) => {
-                  port.open((err) => {
-                      if (err) {
-                          reject("Nie udało się otworzyć portu: " + err.message);
-                      } else {
-                          console.log("Port szeregowy otwarty");
-                          resolve();
-                      }
-                  });
-              });
-          }
-
-          const jsonData = {
+          const command = {
               instruction: "device-control",
               device: device.deviceName,
               actions: actions
           };
 
-          await new Promise((resolve, reject) => {
-              port.write(JSON.stringify(jsonData) + "\n", (err) => {
-                  if (err) {
-                      reject("Błąd podczas zapisu: " + err.message);
-                  } else {
-                      console.log("Dane wysłane do Arduino:", jsonData);
-                      resolve();
-                  }
-              });
-          });
-
+          await serialPortManager.executeCommand(command);
           res.send(req.body);
-
-          await new Promise((resolve, reject) => {
-              port.close((err) => {
-                  if (err) {
-                      reject("Błąd podczas zamykania portu: " + err.message);
-                  } else {
-                      console.log("Port szeregowy zamknięty");
-                      resolve();
-                  }
-              });
-          });
-
       } else {
-          // TODO: obsługa innych typów urządzeń (HTTP, Zigbee itp.)
+          // Handle other types of devices (HTTP, Zigbee, etc.)
           res.send(req.body);
       }
   } catch (err) {
-      console.error("Wystąpił błąd:", err);
-      res.status(500).send({ error: "Wystąpił błąd" });
+      console.error("Error occurred:", err);
+      res.status(500).send({ error: "An error occurred" });
   }
 });
 
-
+process.on('SIGINT', async () => {
+  try {
+      await serialPortManager.closePort();
+      process.exit(0);
+  } catch (error) {
+      console.error('Error during shutdown:', error);
+      process.exit(1);
+  }
+});
 
 
 
@@ -969,49 +1016,6 @@ app.post('/api/automation/toggle', authenticateToken, async (req, res) => {
   const { scenario_id, state, devices } = req.body;
 
   try {
-
-      if (serialPort && serialPort.isOpen) {
-          await new Promise((resolve, reject) => {
-              serialPort.close((err) => {
-                  if (err) {
-                      console.error('Błąd podczas zamykania portu:', err.message);
-                      reject(err);
-                  } else {
-                      console.log('Port szeregowy zamknięty');
-                      resolve();
-                  }
-              });
-          });
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      serialPort = new SerialPort.SerialPort({
-          path: 'COM3',
-          baudRate: 9600,
-          dataBits: 8,
-          parity: 'none',
-          stopBits: 1,
-          flowControl: false,
-          autoOpen: false
-      });
-
-      serialPort.on('error', (err) => {
-          console.error('Błąd portu szeregowego:', err.message);
-      });
-
-      await new Promise((resolve, reject) => {
-          serialPort.open((err) => {
-              if (err) {
-                  console.error('Nie udało się otworzyć portu:', err.message);
-                  reject(err);
-              } else {
-                  console.log('Port szeregowy otwarty');
-                  resolve();
-              }
-          });
-      });
-
       const activeDevices = devices
           .filter(device => device.status === 'active')
           .map(device => ({
@@ -1022,40 +1026,17 @@ app.post('/api/automation/toggle', authenticateToken, async (req, res) => {
               }
           }));
 
-      const jsonData = {
+      const command = {
           instruction: 'scenario',
           state: state,
           devices: activeDevices
       };
 
-      await new Promise((resolve, reject) => {
-          serialPort.write(JSON.stringify(jsonData) + '\n', (err) => {
-              if (err) {
-                  console.error('Błąd podczas zapisu:', err.message);
-                  reject(err);
-              } else {
-                  console.log('Dane scenariusza wysłane:', jsonData);
-                  resolve();
-              }
-          });
-      });
-
-      await new Promise((resolve, reject) => {
-          serialPort.close((err) => {
-              if (err) {
-                  console.error('Błąd podczas zamykania portu:', err.message);
-                  reject(err);
-              } else {
-                  console.log('Port szeregowy zamknięty');
-                  resolve();
-              }
-          });
-      });
-
-      res.status(200).json({ message: 'Pomyślnie przełączono scenariusz' });
+      await serialPortManager.executeCommand(command);
+      res.status(200).json({ message: 'Scenario toggled successfully' });
   } catch (error) {
-      console.error('Błąd w toggle automation:', error);
-      res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+      console.error('Error in toggle automation:', error);
+      res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1116,10 +1097,9 @@ app.post('/api/account/leave-home', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/home/app-start',  async (req, res) => { // authenticateToken,
+app.get('/api/home/app-start', async (req, res) => {
   try {
-      await closeSerialPort();
-      await startApp();
+      await serialPortManager.startSensorReading(io);
       res.json({ status: 'success', message: 'Sensor reading started' });
   } catch (error) {
       res.status(500).json({ status: 'error', message: error.message });

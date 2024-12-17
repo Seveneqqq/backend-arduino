@@ -6,7 +6,7 @@ const scenarioSchema = new mongoose.Schema({
         required: true
     },
     home_id: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Number, 
         required: true
     },
     scenarioTurnOn: {
