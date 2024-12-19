@@ -108,8 +108,8 @@ app.use((req, res, next) => {
 });
 
 
-app.use('/api/mongodb',  mongoDatabaseRoutes); // dodać authenticateToken,
-app.use('/api/assistant', assistantRoutes); // dodać authenticateToken,
+app.use('/api/mongodb', authenticateToken, mongoDatabaseRoutes); 
+app.use('/api/assistant', authenticateToken, assistantRoutes); 
 
 app.post('/api/login', (req, res) => {
 
