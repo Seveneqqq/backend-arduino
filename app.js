@@ -458,140 +458,77 @@ app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
   }
 });
 
+app.post('/api/find-devices', authenticateToken, async (req,res) => {
+  try {
+      const connection = await testConnection();
+      
+      if(connection) {
+          return new Promise((resolve) => {
+              const deviceDataHandler = (data) => {
+                  if (data && data.devices) {
+                      serialPortManager.removeDataHandler(deviceDataHandler);
+                      resolve(res.send({
+                          "connection": true,
+                          "devices": data.devices
+                      }));
+                  }
+              };
 
-function tryToConnect() {
+              serialPortManager.addDataHandler(deviceDataHandler);
 
-  return new Promise((resolve, reject) => {
+              serialPortManager.executeCommand({ 
+                  instruction: "send-devices-list" 
+              });
+          });
+      } else {
+          res.send({"connection": false});
+      }
+  } catch (error) {
+      console.error('Failed:', error);
+      res.send({error: error.message || 'Unknown error'});
+  }
+});
 
-    try {
-      port = new SerialPort.SerialPort({
-        path: 'COM3',
-        baudRate: 9600,
-        dataBits: 8,
-        parity: 'none',
-        stopBits: 1,
-        flowControl: false
-      });
+async function tryToConnect() {
+  try {
+      const command = {
+          instruction: "check-connection"
+      };
 
-      port.on('error', (err) => {
-        console.error('Failed to connect');
-        console.log(err);
-        reject(false);
-      });
-
-      const jsonData = { instruction: "check-connection" };
-
-      port.write(JSON.stringify(jsonData) + '\n', (err) => {
-        if (err) {
-          console.error('Error on write: ', err.message);
-          reject(false); 
-        }
-        console.log('Data sent to arduino:', jsonData);
-      });
-
-      port.on('data', (data) => {
-        try {
-
-          console.log(`Data from arduino: ${data}`);
-          let jsonData = JSON.parse(data);
-          if (jsonData.connected) {
-
-            resolve(true);
-
-          } else {
-            resolve(false); 
-          }
-        } catch (error) {
-          console.log('failed connection');
-          reject(false);
-        }
-      });
-    } catch (error) {
-
-      console.log('Failed');
-      reject(false); 
-
-    }
-  });
+      await serialPortManager.executeCommand(command);
+      return true;
+  } catch (error) {
+      console.error('Connection test failed:', error);
+      return false;
+  }
 }
 
 async function testConnection() {
   try {
-
-    const result = await tryToConnect();
-    console.log(result); 
-    return result;
-
+      const result = await tryToConnect();
+      console.log('Connection test result:', result);
+      return result;
   } catch (error) {
-
-    console.log(error); 
-    return false;
-
+      console.error('Connection test error:', error);
+      return false;
   }
-} 
-
+}
 
 async function getDevices() {
-  return new Promise((resolve, reject) => {
-      try {
-          let buffer = '';
-          
-          // Usuń poprzednie nasłuchiwanie
-          port.removeAllListeners('data');
-          port.removeAllListeners('error');
-          
-          port.on('error', (err) => {
-              console.error('Failed to connect:', err);
-              reject(false);
-          });
+  try {
+      const command = {
+          instruction: "send-devices-list"
+      };
 
-          port.on('data', (chunk) => {
-              try {
-                  buffer += chunk.toString();
-                  
-                  // Sprawdź czy mamy kompletny JSON (kończy się znakiem nowej linii)
-                  if (buffer.includes('\n')) {
-                      let jsonStr = buffer.toString().trim();
-                      console.log('Received data:', jsonStr);
-                      
-                      // Upewnij się, że mamy kompletny JSON z devices
-                      if (jsonStr.includes('"devices"')) {
-                          const jsonData = JSON.parse(jsonStr);
-                          if (jsonData.devices) {
-                              resolve(jsonData.devices);
-                          }
-                      }
-                      buffer = ''; // Wyczyść bufor
-                  }
-              } catch (error) {
-                  console.log('Error parsing data:', error);
-                  console.log('Received buffer:', buffer);
-              }
-          });
-
-          // Wyślij żądanie
-          const jsonData = { instruction: "send-devices-list" };
-          port.write(JSON.stringify(jsonData) + '\n', (err) => {
-              if (err) {
-                  console.error('Error writing to port:', err.message);
-                  reject(false);
-              }
-              console.log('Data sent to arduino:', jsonData);
-          });
-
-          // Timeout po 5 sekundach
-          setTimeout(() => {
-              port.removeAllListeners('data');
-              if (!buffer.includes('"devices"')) {
-                  reject(false);
-              }
-          }, 5000);
-
-      } catch (error) {
-          console.log('Failed3:', error);
-          reject(false);
+      const response = await serialPortManager.executeCommand(command);
+      if (response && response.devices) {
+          return response.devices;
       }
-  });
+      throw new Error('No devices data received');
+  } catch (error) {
+      console.error('Failed to get devices:', error);
+      throw error;
+  }
 }
 
 
@@ -636,40 +573,6 @@ process.on('SIGINT', async () => {
   }
 });
 
-
-
-
-app.post('/api/find-devices', authenticateToken, async (req,res) =>{
-
-  try {
-    
-    const connection = await testConnection();
-      
-    if(connection){
-
-      const devicesList = await getDevices();
-
-      console.log(devicesList);
-
-      res.send({"connection":`${connection}`, "devices": devicesList});
-
-      
-
-    }
-    else{
-      res.send({"connection":`${connection}`});
-    }
-
-
-  } catch (error) {
-    res.send({error: error});
-    console.log('Failed');
-    console.log(error);
-  }finally{
-    await port.close();
-  }
-  
-});
 
 app.post('/api/add-new-devices', authenticateToken, async (req,res) => {
   console.log('Dodawanie urzadzen');
