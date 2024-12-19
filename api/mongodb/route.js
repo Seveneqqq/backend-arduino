@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Scenario, DeviceProtocol } = require('./schema');
+const { Scenario, DeviceProtocol, Alarm } = require('./schema');
 
 router.get('/', async (req, res) => {
 
@@ -129,5 +129,78 @@ router.get('/device-protocol/:device_id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+router.get('/alarms/:home_id', async (req, res) => {
+    try {
+        const home_id = req.params.home_id;
+        
+        const alarmSettings = await Alarm.findOne({ home_id });
+        
+        if (!alarmSettings) {
+            return res.status(404).json({ error: 'Alarm settings not found for this home' });
+        }
+        
+        res.status(200).json(alarmSettings);
+        
+    } catch (error) {
+        console.error('Error fetching alarm settings:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/add-alarm', async (req, res) => {
+    try {
+        const { home_id, temperatureRange, humidityRange } = req.body;
+
+        if (!home_id || !temperatureRange || !humidityRange) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const newAlarm = new Alarm({
+            home_id,
+            temperatureRange,
+            humidityRange
+        });
+
+        const savedAlarm = await newAlarm.save();
+        res.status(200).json(savedAlarm);
+
+    } catch (error) {
+        console.error('Error adding alarm:', error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+router.put('/update-alarm/:home_id', async (req, res) => {
+    try {
+        const { temperatureRange, humidityRange } = req.body;
+        const home_id = req.params.home_id;
+
+        if (!temperatureRange && !humidityRange) {
+            return res.status(400).json({ error: 'No update data provided' });
+        }
+
+        const updateData = {};
+        if (temperatureRange) updateData.temperatureRange = temperatureRange;
+        if (humidityRange) updateData.humidityRange = humidityRange;
+
+        const updatedAlarm = await Alarm.findOneAndUpdate(
+            { home_id },
+            { $set: updateData },
+            { new: true }
+        );
+
+        if (!updatedAlarm) {
+            return res.status(404).json({ error: 'Alarm not found for this home' });
+        }
+
+        res.status(200).json(updatedAlarm);
+
+    } catch (error) {
+        console.error('Error updating alarm:', error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
 
 module.exports = router;

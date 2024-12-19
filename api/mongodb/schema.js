@@ -138,7 +138,27 @@ const deviceProtocolSchema = new mongoose.Schema({
     timestamps: true
 });
 
+const alarmsSchema = new mongoose.Schema({
+    home_id: {
+        type: Number,
+        required: true
+    },
+    temperatureRange: {
+        type: [Number],
+        default: [19, 24],
+        required: true
+    },
+    humidityRange: {
+        type: [Number],
+        default: [40, 60],
+        required: true
+    }
+}, {
+    timestamps: true
+});
+
 module.exports = {
     Scenario: mongoose.model('Scenario', scenarioSchema),
-    DeviceProtocol: mongoose.model('DeviceProtocol', deviceProtocolSchema)
+    DeviceProtocol: mongoose.model('DeviceProtocol', deviceProtocolSchema),
+    Alarm: mongoose.model('Alarm', alarmsSchema)
 };
