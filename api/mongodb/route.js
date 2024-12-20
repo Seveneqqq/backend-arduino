@@ -58,7 +58,7 @@ router.post('/users/history', async (req, res) => {
         await userHistory.save();
         res.status(200).json(userHistory);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error });
     }
 });
 

@@ -371,7 +371,7 @@ app.post('/api/join-to-home', authenticateToken, (req, res) => {
                   return res.status(500).send({ error: 'Database error' });
               }
               console.log(`Inserted id: ${result.insertId}`);
-              res.send({ success: 'ok', home_name: home_name });
+              res.send({ success: 'ok', home_name: home_name, home_id: home_id });
           });
       } catch (error) {
           console.error('Error while processing the request:', error);
