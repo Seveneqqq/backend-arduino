@@ -29,6 +29,25 @@ const io = require('socket.io')(server, {
   }
 });
 
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('Client connected');
+  activeSocket = socket;
+
+  socket.on('joinHome', (homeId) => {
+      socket.join(homeId);
+      console.log(`Client joined home room: ${homeId}`);
+  });
+
+  socket.on('disconnect', () => {
+      console.log('Client disconnected');
+      if (activeSocket === socket) {
+          activeSocket = null;
+      }
+  });
+});
+
 let activeSocket = null;
 let serialPort = null;
 let thisHomeDevices

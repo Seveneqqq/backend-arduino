@@ -96,6 +96,44 @@ const scenarioSchema = new mongoose.Schema({
     timestamps: true
 });
 
+const alarmHistorySchema = new mongoose.Schema({
+    home_id: {
+        type: Number,
+        required: true
+    },
+    type: {
+        type: String,
+        enum: ['temperature', 'humidity'],
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['alert', 'resolved'],
+        required: true
+    },
+    value: {
+        type: Number,
+        required: true
+    },
+    range: {
+        type: [Number],
+        required: true,
+        validate: {
+            validator: function(arr) {
+                return arr.length === 2;
+            },
+            message: 'Range must contain exactly 2 numbers'
+        }
+    },
+    timestamp: {
+        type: Date,
+        default: Date.now,
+        required: true
+    }
+}, {
+    timestamps: true
+});
+
 const deviceProtocolSchema = new mongoose.Schema({
     device_id: {
         type: Number,
@@ -160,5 +198,6 @@ const alarmsSchema = new mongoose.Schema({
 module.exports = {
     Scenario: mongoose.model('Scenario', scenarioSchema),
     DeviceProtocol: mongoose.model('DeviceProtocol', deviceProtocolSchema),
-    Alarm: mongoose.model('Alarm', alarmsSchema)
+    Alarm: mongoose.model('Alarm', alarmsSchema),
+    AlarmHistory: mongoose.model('AlarmHistory', alarmHistorySchema)
 };

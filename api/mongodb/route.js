@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Scenario, DeviceProtocol, Alarm } = require('./schema');
+const { Scenario, DeviceProtocol, Alarm, AlarmHistory } = require('./schema');
 
 router.get('/', async (req, res) => {
 
@@ -11,6 +11,25 @@ router.get('/', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 
+});
+
+router.post('/alarms/history', async (req, res) => {
+    try {
+
+        const alarmHistory = new AlarmHistory(req.body);
+        await alarmHistory.save();
+
+        req.app.get('io').to(req.body.homeId).emit('newAlarmNotification', {
+            type: req.body.type,
+            status: req.body.status,
+            value: req.body.value,
+            timestamp: req.body.timestamp
+        });
+        
+        res.status(200).json(alarmHistory);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 router.get('/scenarios/:home_id', async (req, res) => {
