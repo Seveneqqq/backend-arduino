@@ -12,6 +12,26 @@ router.get('/', async (req, res) => {
     }
 
 });
+router.get('/alarms/history/:home_id', async (req, res) => {
+
+    try {
+        const homeId = req.params.home_id;
+        
+        const alarms = await AlarmHistory.find({ home_id: homeId })
+            .sort({ timestamp: -1 });
+        
+        if (!alarms) {
+            return res.status(404).json({ error: 'No alarm history found for this home' });
+        }
+
+        res.status(200).json(alarms);
+        
+    } catch (error) {
+        console.error('Error fetching alarm history:', error);
+        res.status(500).json({ error: error.message });
+    }
+    
+});
 
 router.post('/alarms/history', async (req, res) => {
     try {
