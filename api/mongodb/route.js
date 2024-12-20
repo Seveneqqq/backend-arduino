@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { Scenario, DeviceProtocol, Alarm, AlarmHistory } = require('./schema');
+const { Scenario, DeviceProtocol, Alarm, AlarmHistory, DeviceHistory, ScenarioHistory, UserHistory } = require('./schema');
 
 router.get('/', async (req, res) => {
-
     try {
         const scenarios = await Scenario.find();
         res.json(scenarios);
@@ -12,6 +11,68 @@ router.get('/', async (req, res) => {
     }
 
 });
+
+router.post('/devices/history', async (req, res) => {
+    try {
+        const deviceHistory = new DeviceHistory(req.body);
+        await deviceHistory.save();
+        res.status(200).json(deviceHistory);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/devices/history/:home_id', async (req, res) => {
+    try {
+        const history = await DeviceHistory.find({ home_id: req.params.home_id })
+            .sort({ timestamp: -1 });
+        res.status(200).json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/scenarios/history', async (req, res) => {
+    try {
+        const scenarioHistory = new ScenarioHistory(req.body);
+        await scenarioHistory.save();
+        res.status(200).json(scenarioHistory);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/scenarios/history/:home_id', async (req, res) => {
+    try {
+        const history = await ScenarioHistory.find({ home_id: req.params.home_id })
+            .sort({ timestamp: -1 });
+        res.status(200).json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/users/history', async (req, res) => {
+    try {
+        const userHistory = new UserHistory(req.body);
+        await userHistory.save();
+        res.status(200).json(userHistory);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/users/history/:home_id', async (req, res) => {
+    try {
+        const history = await UserHistory.find({ home_id: req.params.home_id })
+            .sort({ timestamp: -1 });
+        res.status(200).json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 router.get('/alarms/history/:home_id', async (req, res) => {
 
     try {
