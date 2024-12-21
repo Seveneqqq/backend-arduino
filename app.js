@@ -1179,18 +1179,6 @@ app.get('/api/users', authenticateToken, (req,res) => {
   });
 });
 
-app.get('/api/scenarios', authenticateToken, (req,res) => {
-
-});
-
-app.post('/api/command', authenticateToken, (req, res) => {
-
-  const {command,value} = req.body;
-
-});
-
-
-
 
 mongoose.connect('mongodb://localhost:27017/home_automation')
     .then(() => console.log('Connected to MongoDB'))

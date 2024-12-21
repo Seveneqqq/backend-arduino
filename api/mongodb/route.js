@@ -180,12 +180,12 @@ router.post('/add-device-protocol', async (req, res) => {
 });
 
 router.post('/add-scenario', async (req, res) => {
+    
     try {
         console.log(req.body);
-        const { name, home_id, devices } = req.body;
+        const { name, home_id, devices, user_id } = req.body;
         const { scenarioTurnOn, scenarioTurnOff } = req.body || {};
 
-        
         const newScenario = new Scenario({
             name,
             home_id,
@@ -206,6 +206,17 @@ router.post('/add-scenario', async (req, res) => {
         });
 
         const savedScenario = await newScenario.save();
+
+        const scenarioHistory = new ScenarioHistory({
+            home_id,
+            user_id,
+            action: 'added',
+            scenario_name: name,
+            timestamp: new Date()
+        });
+
+        await scenarioHistory.save();
+
         res.status(200).json(savedScenario);
 
     } catch (error) {
