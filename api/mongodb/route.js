@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { Scenario, DeviceProtocol, Alarm } = require('./schema');
+const { Scenario, DeviceProtocol, Alarm, AlarmHistory, DeviceHistory, ScenarioHistory, UserHistory } = require('./schema');
 
 router.get('/', async (req, res) => {
-
     try {
         const scenarios = await Scenario.find();
         res.json(scenarios);
@@ -11,6 +10,107 @@ router.get('/', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 
+});
+
+router.post('/devices/history', async (req, res) => {
+    try {
+        const deviceHistory = new DeviceHistory(req.body);
+        await deviceHistory.save();
+        res.status(200).json(deviceHistory);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/devices/history/:home_id', async (req, res) => {
+    try {
+        const history = await DeviceHistory.find({ home_id: req.params.home_id })
+            .sort({ timestamp: -1 });
+        res.status(200).json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/scenarios/history', async (req, res) => {
+    try {
+        const scenarioHistory = new ScenarioHistory(req.body);
+        await scenarioHistory.save();
+        res.status(200).json(scenarioHistory);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/scenarios/history/:home_id', async (req, res) => {
+    try {
+        const history = await ScenarioHistory.find({ home_id: req.params.home_id })
+            .sort({ timestamp: -1 });
+        res.status(200).json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/users/history', async (req, res) => {
+    try {
+        const userHistory = new UserHistory(req.body);
+        await userHistory.save();
+        res.status(200).json(userHistory);
+    } catch (error) {
+        res.status(500).json({ error: error });
+    }
+});
+
+router.get('/users/history/:home_id', async (req, res) => {
+    try {
+        const history = await UserHistory.find({ home_id: req.params.home_id })
+            .sort({ timestamp: -1 });
+        res.status(200).json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+router.get('/alarms/history/:home_id', async (req, res) => {
+
+    try {
+        const homeId = req.params.home_id;
+        
+        const alarms = await AlarmHistory.find({ home_id: homeId })
+            .sort({ timestamp: -1 });
+        
+        if (!alarms) {
+            return res.status(404).json({ error: 'No alarm history found for this home' });
+        }
+
+        res.status(200).json(alarms);
+        
+    } catch (error) {
+        console.error('Error fetching alarm history:', error);
+        res.status(500).json({ error: error.message });
+    }
+    
+});
+
+router.post('/alarms/history', async (req, res) => {
+    try {
+
+        const alarmHistory = new AlarmHistory(req.body);
+        await alarmHistory.save();
+
+        req.app.get('io').to(req.body.homeId).emit('newAlarmNotification', {
+            type: req.body.type,
+            status: req.body.status,
+            value: req.body.value,
+            timestamp: req.body.timestamp
+        });
+        
+        res.status(200).json(alarmHistory);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 router.get('/scenarios/:home_id', async (req, res) => {
@@ -80,12 +180,12 @@ router.post('/add-device-protocol', async (req, res) => {
 });
 
 router.post('/add-scenario', async (req, res) => {
+    
     try {
         console.log(req.body);
-        const { name, home_id, devices } = req.body;
+        const { name, home_id, devices, user_id } = req.body;
         const { scenarioTurnOn, scenarioTurnOff } = req.body || {};
 
-        
         const newScenario = new Scenario({
             name,
             home_id,
@@ -106,6 +206,17 @@ router.post('/add-scenario', async (req, res) => {
         });
 
         const savedScenario = await newScenario.save();
+
+        const scenarioHistory = new ScenarioHistory({
+            home_id,
+            user_id,
+            action: 'added',
+            scenario_name: name,
+            timestamp: new Date()
+        });
+
+        await scenarioHistory.save();
+
         res.status(200).json(savedScenario);
 
     } catch (error) {

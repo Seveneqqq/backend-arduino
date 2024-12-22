@@ -29,6 +29,25 @@ const io = require('socket.io')(server, {
   }
 });
 
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('Client connected');
+  activeSocket = socket;
+
+  socket.on('joinHome', (homeId) => {
+      socket.join(homeId);
+      console.log(`Client joined home room: ${homeId}`);
+  });
+
+  socket.on('disconnect', () => {
+      console.log('Client disconnected');
+      if (activeSocket === socket) {
+          activeSocket = null;
+      }
+  });
+});
+
 let activeSocket = null;
 let serialPort = null;
 let thisHomeDevices
@@ -352,7 +371,7 @@ app.post('/api/join-to-home', authenticateToken, (req, res) => {
                   return res.status(500).send({ error: 'Database error' });
               }
               console.log(`Inserted id: ${result.insertId}`);
-              res.send({ success: 'ok', home_name: home_name });
+              res.send({ success: 'ok', home_name: home_name, home_id: home_id });
           });
       } catch (error) {
           console.error('Error while processing the request:', error);
@@ -575,106 +594,131 @@ process.on('SIGINT', async () => {
 
 
 app.post('/api/add-new-devices', authenticateToken, async (req,res) => {
-  console.log('Dodawanie urzadzen');
-  const home_id = req.body.homeId;
-  const devices = req.body.devices;
-  const rooms = [
-      'Kitchen',
-      'Living room', 
-      'Bathroom', 
-      'Garden', 
-      'Childrens room', 
-      'Garage',
-      'Office',
-  ];
+ console.log('Dodawanie urzadzen');
+ const home_id = req.body.homeId;
+ const user_id = req.user.id;
+ const devices = req.body.devices;
+ const rooms = [
+     'Kitchen',
+     'Living room', 
+     'Bathroom', 
+     'Garden', 
+     'Childrens room', 
+     'Garage',
+     'Office',
+ ];
 
-  try {
-      await Promise.all(devices.map(async (el) => {
-          try {
-              let room_id = rooms.indexOf(el.selectedRoom);
+ try {
+     await Promise.all(devices.map(async (el) => {
+         try {
+             let room_id = rooms.indexOf(el.selectedRoom);
 
-              const deviceId = await new Promise((resolve, reject) => {
-                  const query = `INSERT INTO devices
-                      (device_id, name, home_id, room_id, label, command_on, command_off, status, category)
-                      VALUES
-                      ('', '${el.name}', ${home_id}, ${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}', '${el.category}')`;
-                  
-                  conn.query(query, (error, results) => {
-                      if (error) {
-                          reject(error);
-                      } else {
-                          resolve(results.insertId);
-                      }
-                  });
-              });
-              
-              console.log('Inserted device ID:', deviceId);
+             const deviceId = await new Promise((resolve, reject) => {
+                 const query = `INSERT INTO devices
+                     (device_id, name, home_id, room_id, label, command_on, command_off, status, category)
+                     VALUES
+                     ('', '${el.name}', ${home_id}, ${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}', '${el.category}')`;
+                 
+                 conn.query(query, (error, results) => {
+                     if (error) {
+                         reject(error);
+                     } else {
+                         resolve(results.insertId);
+                     }
+                 });
+             });
+             
+             console.log('Inserted device ID:', deviceId);
 
-              if(el.protocol){
-                  const protocolData = {
-                      device_id: deviceId,
-                      protocol_type: el.protocol
-                  };
+             const historyData = {
+               home_id: home_id,
+               user_id: user_id,
+               action: "added",
+               device_name: el.name,
+               device_status: el.status,
+               room: el.selectedRoom,
+               category: el.category,
+               timestamp: new Date().toISOString()
+             };
 
-                  switch(el.protocol) {
-                      case 'Wifi':
-                          protocolData.ipAddress = el.protocolConfig.ipAddress;
-                          protocolData.macAddress = el.protocolConfig.macAddress;
-                          protocolData.ssid = el.protocolConfig.ssid;
-                          protocolData.password = el.protocolConfig.password;
-                          break;
-                      case 'Zigbee':
-                          protocolData.zigbeeId = el.protocolConfig.zigbeeId;
-                          protocolData.zigbeeChannel = el.protocolConfig.zigbeeChannel;
-                          protocolData.zigbeeGroupId = el.protocolConfig.zigbeeGroupId;
-                          protocolData.zigbeeHub = el.protocolConfig.zigbeeHub;
-                          break;
-                      case 'Bluetooth':
-                          protocolData.bleUuid = el.protocolConfig.bleUuid;
-                          protocolData.bleConnection = el.protocolConfig.bleConnection;
-                          break;
-                      case 'Z-Wave':
-                          protocolData.zwaveDeviceId = el.protocolConfig.zwaveDeviceId;
-                          protocolData.zwaveNetworkKey = el.protocolConfig.zwaveNetworkKey;
-                          protocolData.zwaveGroupId = el.protocolConfig.zwaveGroupId;
-                          break;
-                      case 'MQTT':
-                          protocolData.mqttBrokerUrl = el.protocolConfig.mqttBrokerUrl;
-                          protocolData.mqttTopicOn = el.protocolConfig.mqttTopicOn;
-                          protocolData.mqttTopicOff = el.protocolConfig.mqttTopicOff;
-                          protocolData.mqttDeviceId = el.protocolConfig.mqttDeviceId;
-                          break;
-                  }
+             const historyResponse = await fetch('http://localhost:4000/api/mongodb/devices/history', {
+               method: 'POST',  
+               headers: {
+                   'Content-Type': 'application/json',
+                   'Authorization': req.headers.authorization
+               },
+               body: JSON.stringify(historyData)
+             });
 
-                  const response = await fetch('http://localhost:4000/api/mongodb/add-device-protocol', {
-                      method: 'POST',
-                      headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': 'Bearer ' + req.headers.authorization
-                      },
-                      body: JSON.stringify(protocolData)
-                  });
+             if (!historyResponse.ok) {
+                 const errorText = await historyResponse.text();
+                 console.error('Failed to save device history:', historyResponse.status, errorText);
+             }
 
-                  console.log(response);
+             if(el.protocol){
+                 const protocolData = {
+                     device_id: deviceId,
+                     protocol_type: el.protocol
+                 };
 
-                  if (!response.ok) {
-                      const errorData = await response.json();
-                      throw new Error(errorData.error || 'Failed to save protocol data');
-                  }
-              }
-              
-          } catch (error) {
-              console.error('Error inserting device:', error);
-              throw error;
-          }
-      }));
+                 switch(el.protocol) {
+                     case 'Wifi':
+                         protocolData.ipAddress = el.protocolConfig.ipAddress;
+                         protocolData.macAddress = el.protocolConfig.macAddress;
+                         protocolData.ssid = el.protocolConfig.ssid;
+                         protocolData.password = el.protocolConfig.password;
+                         break;
+                     case 'Zigbee':
+                         protocolData.zigbeeId = el.protocolConfig.zigbeeId;
+                         protocolData.zigbeeChannel = el.protocolConfig.zigbeeChannel;
+                         protocolData.zigbeeGroupId = el.protocolConfig.zigbeeGroupId;
+                         protocolData.zigbeeHub = el.protocolConfig.zigbeeHub;
+                         break;
+                     case 'Bluetooth':
+                         protocolData.bleUuid = el.protocolConfig.bleUuid;
+                         protocolData.bleConnection = el.protocolConfig.bleConnection;
+                         break;
+                     case 'Z-Wave':
+                         protocolData.zwaveDeviceId = el.protocolConfig.zwaveDeviceId;
+                         protocolData.zwaveNetworkKey = el.protocolConfig.zwaveNetworkKey;
+                         protocolData.zwaveGroupId = el.protocolConfig.zwaveGroupId;
+                         break;
+                     case 'MQTT':
+                         protocolData.mqttBrokerUrl = el.protocolConfig.mqttBrokerUrl;
+                         protocolData.mqttTopicOn = el.protocolConfig.mqttTopicOn;
+                         protocolData.mqttTopicOff = el.protocolConfig.mqttTopicOff;
+                         protocolData.mqttDeviceId = el.protocolConfig.mqttDeviceId;
+                         break;
+                 }
 
-      res.send({success: 'New devices added'});
-      
-  } catch (error) {
-      console.log(error);
-      res.status(500).send({error: error.message});
-  }
+                 const response = await fetch('http://localhost:4000/api/mongodb/add-device-protocol', {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+                         'Authorization': req.headers.authorization
+                     },
+                     body: JSON.stringify(protocolData)
+                 });
+
+                 if (!response.ok) {
+                     const errorText = await response.text();
+                     console.error('Protocol save error:', response.status, errorText);
+                     throw new Error(`Failed to save protocol data: ${errorText}`);
+                 }
+             }
+             
+         } catch (error) {
+             console.error('Error inserting device:', error);
+             throw error;
+         }
+     }));
+
+     res.send({success: 'New devices added'});
+     
+ } catch (error) {
+     console.log(error);
+     res.status(500).send({error: error.message});
+ }
 });
 
 app.get('/api/devices-list', authenticateToken, (req, res) => {
@@ -1159,18 +1203,6 @@ app.get('/api/users', authenticateToken, (req,res) => {
 
   });
 });
-
-app.get('/api/scenarios', authenticateToken, (req,res) => {
-
-});
-
-app.post('/api/command', authenticateToken, (req, res) => {
-
-  const {command,value} = req.body;
-
-});
-
-
 
 
 mongoose.connect('mongodb://localhost:27017/home_automation')
