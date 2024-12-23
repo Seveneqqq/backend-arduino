@@ -285,6 +285,19 @@ const alarmsSchema = new mongoose.Schema({
     timestamps: true
 });
 
+const cameraSchema = new mongoose.Schema({
+    home_id: {
+        type: Number,
+        required: true
+    },
+    camera_url: {
+        type: String,
+        required: true
+    }
+}, {
+    timestamps: true
+});
+
 module.exports = {
     Scenario: mongoose.model('Scenario', scenarioSchema),
     DeviceProtocol: mongoose.model('DeviceProtocol', deviceProtocolSchema),
@@ -292,5 +305,6 @@ module.exports = {
     AlarmHistory: mongoose.model('AlarmHistory', alarmHistorySchema),
     DeviceHistory: mongoose.model('DeviceHistory', deviceHistorySchema),
     ScenarioHistory: mongoose.model('ScenarioHistory', scenarioHistorySchema),
-    UserHistory: mongoose.model('UserHistory', userHistorySchema)
+    UserHistory: mongoose.model('UserHistory', userHistorySchema),
+    Camera: mongoose.model('Camera', cameraSchema)
 };

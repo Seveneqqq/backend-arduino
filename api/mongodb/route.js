@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Scenario, DeviceProtocol, Alarm, AlarmHistory, DeviceHistory, ScenarioHistory, UserHistory } = require('./schema');
+const { Scenario, DeviceProtocol, Alarm, AlarmHistory, DeviceHistory, ScenarioHistory, UserHistory, Camera } = require('./schema');
 
 router.get('/', async (req, res) => {
     try {
@@ -10,6 +10,76 @@ router.get('/', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 
+});
+
+router.post('/camera', async (req, res) => {
+    try {
+        console.log("Received camera data:", req.body);
+        const { home_id, camera_url } = req.body;
+        
+        // Używamy findOneAndUpdate z upsert: true
+        const camera = await Camera.findOneAndUpdate(
+            { home_id }, // warunek wyszukiwania
+            { camera_url }, // dane do aktualizacji
+            { 
+                upsert: true, // tworzy nowy dokument jeśli nie istnieje
+                new: true // zwraca zaktualizowany dokument
+            }
+        );
+        
+        console.log("Saved/Updated camera:", camera);
+        res.status(200).json(camera);
+    } catch (error) {
+        console.error("Error saving camera:", error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Endpoint do pobierania kamery (GET)
+router.get('/camera/:home_id', async (req, res) => {
+    try {
+        console.log("Looking for camera for home_id:", req.params.home_id); // dodaj log
+        const camera = await Camera.findOne({ home_id: req.params.home_id });
+        if (!camera) {
+            return res.status(404).json({ error: 'Camera not found' });
+        }
+        res.status(200).json(camera);
+    } catch (error) {
+        console.error("Error fetching camera:", error); // dodaj log
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint do aktualizacji kamery (PUT)
+router.put('/camera/:home_id', async (req, res) => {
+    try {
+        console.log("Updating camera for home_id:", req.params.home_id, "with data:", req.body); // dodaj log
+        const { camera_url } = req.body;
+        const updatedCamera = await Camera.findOneAndUpdate(
+            { home_id: req.params.home_id },
+            { camera_url },
+            { new: true }
+        );
+        if (!updatedCamera) {
+            return res.status(404).json({ error: 'Camera not found' });
+        }
+        res.status(200).json(updatedCamera);
+    } catch (error) {
+        console.error("Error updating camera:", error); // dodaj log
+        res.status(400).json({ error: error.message });
+    }
+});
+
+router.delete('/camera/:home_id', async (req, res) => {
+    try {
+        const camera = await Camera.findOneAndDelete({ home_id: req.params.home_id });
+        if (!camera) {
+            return res.status(404).json({ error: 'Camera not found' });
+        }
+        res.status(200).json({ message: 'Camera deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 router.post('/devices/history', async (req, res) => {
