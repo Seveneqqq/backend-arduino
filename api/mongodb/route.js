@@ -80,6 +80,22 @@ router.delete('/camera/:home_id', async (req, res) => {
     }
 });
 
+
+router.get('/statistics/:home_id', async (req, res) => {
+    const homeId = req.params.home_id;
+    
+    try {
+        const scenariosCount = await Scenario.countDocuments({ home_id: homeId });
+        
+        res.status(200).json({
+            scenarios: scenariosCount
+        });
+    } catch (error) {
+        console.error('Error fetching statistics:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 router.post('/devices/history', async (req, res) => {
     try {
         const deviceHistory = new DeviceHistory(req.body);

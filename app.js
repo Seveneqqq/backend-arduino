@@ -477,6 +477,47 @@ app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
   }
 });
 
+app.get('/api/home/statistics/:home_id', authenticateToken, async (req, res) => {
+  const home_id = req.params.home_id;
+
+  try {
+
+      const mysqlData = await new Promise((resolve, reject) => {
+          conn.query(
+              `SELECT 
+                  (SELECT COUNT(*) FROM users_home WHERE home_id = ?) as users_count,
+                  (SELECT COUNT(*) FROM devices WHERE home_id = ?) as devices_count`,
+              [home_id, home_id],
+              (err, results) => {
+                  if (err) reject(err);
+                  resolve(results[0]);
+              }
+          );
+      });
+
+      const mongoResponse = await fetch(`http://localhost:4000/api/mongodb/scenarios/${home_id}`, {
+          headers: {
+              'Authorization': req.headers.authorization
+          }
+      });
+      
+      const scenarios = await mongoResponse.json();
+      const scenariosCount = scenarios.length;
+
+      const statistics = {
+          users: mysqlData.users_count,
+          devices: mysqlData.devices_count,
+          scenarios: scenariosCount
+      };
+
+      res.status(200).json(statistics);
+
+  } catch (error) {
+      console.error('Error fetching statistics:', error);
+      res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/find-devices', authenticateToken, async (req,res) => {
   try {
       const connection = await testConnection();
