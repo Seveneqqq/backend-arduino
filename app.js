@@ -652,13 +652,14 @@ app.post('/api/add-new-devices', authenticateToken, async (req,res) => {
  try {
      await Promise.all(devices.map(async (el) => {
          try {
-             let room_id = rooms.indexOf(el.selectedRoom);
+
+             console.log("roomId "+el.room_id);
 
              const deviceId = await new Promise((resolve, reject) => {
                  const query = `INSERT INTO devices
                      (device_id, name, home_id, room_id, label, command_on, command_off, status, category)
                      VALUES
-                     ('', '${el.name}', ${home_id}, ${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}', '${el.category}')`;
+                     ('', '${el.name}', ${home_id}, ${el.room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}', '${el.category}')`;
                  
                  conn.query(query, (error, results) => {
                      if (error) {
