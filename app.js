@@ -432,7 +432,7 @@ app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
               try {
                   const mongoResponse = await fetch(`http://localhost:4000/api/mongodb/device-protocol/${device.device_id}`, {
                       headers: {
-                          'Authorization': 'Bearer ' + req.headers.authorization
+                          'Authorization': req.headers.authorization
                       }
                   });
 
@@ -443,6 +443,7 @@ app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
                           protocolData: protocolData
                       };
                   }
+
               } catch (error) {
                   console.error('Error fetching MongoDB data:', error);
               }
@@ -633,6 +634,46 @@ process.on('SIGINT', async () => {
   }
 });
 
+app.delete('/api/devices/:device_id', authenticateToken, async (req, res) => {
+  const device_id = req.params.device_id;
+  
+  try {
+      await new Promise((resolve, reject) => {
+          conn.query('DELETE FROM devices WHERE device_id = ?', [device_id], (err, result) => {
+              if (err) reject(err);
+              resolve(result);
+          });
+      });
+
+      res.status(200).json({ message: 'Device deleted successfully' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Failed to delete device' });
+  }
+});
+
+app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
+  const device_id = req.params.device_id;
+  const { label, command_on, command_off } = req.body;
+  
+  try {
+      await new Promise((resolve, reject) => {
+          conn.query(
+              'UPDATE devices SET label = ?, command_on = ?, command_off = ? WHERE device_id = ?',
+              [label, command_on, command_off, device_id],
+              (err, result) => {
+                  if (err) reject(err);
+                  resolve(result);
+              }
+          );
+      });
+
+      res.status(200).json({ message: 'Device updated successfully' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Failed to update device' });
+  }
+});
 
 app.post('/api/add-new-devices', authenticateToken, async (req,res) => {
  console.log('Dodawanie urzadzen');
