@@ -676,9 +676,9 @@ app.post('/api/add-new-devices', authenticateToken, async (req,res) => {
                home_id: home_id,
                user_id: user_id,
                action: "added",
-               device_name: el.name,
+               device_name: el.label,
                device_status: el.status,
-               room: el.selectedRoom,
+               room: el.room_id,
                category: el.category,
                timestamp: new Date().toISOString()
              };
