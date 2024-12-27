@@ -79,14 +79,7 @@ function closeSerialPort() {
   });
 }
 
-
-
 const secretKey = process.env.JWT_SECRET;
-
-let connected;
-let port;
-
-const Readline = require('@serialport/parser-readline');
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -177,12 +170,7 @@ app.post('/api/register', (req, res) => {
       return isOk;
   
     }
-  
-    // console.log(`Email: ${email}`);
-    // console.log(`Username: ${username}`);
-    // console.log(`Password: ${password}`);
-    // console.log(`Repeat Password: ${repeatPassword}`);
-  
+    
     if(email.length == 0 || username.length == 0 || password.length == 0  || repeatPassword.length == 0){
       emptyFields = true;
     }
@@ -591,15 +579,6 @@ async function getDevices() {
       throw error;
   }
 }
-
-
-
-
-
-
-
-
-
 
 app.post("/api/home/do", async (req, res) => {
   try {
@@ -1039,9 +1018,6 @@ app.post('/api/home/change-name', authenticateToken, async (req, res) => {
 })
 
 
-
-
-
 app.post('/api/automation/toggle', authenticateToken, async (req, res) => {
   const { scenario_id, state, devices } = req.body;
 
@@ -1069,11 +1045,6 @@ app.post('/api/automation/toggle', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
-
-
-
 
 
 app.post('/api/account/leave-home', authenticateToken, async (req, res) => {
@@ -1138,7 +1109,6 @@ app.get('/api/home/app-start', async (req, res) => {
 
 async function startApp() {
   
-
   if (serialPort) {
       await closeSerialPort();
   }
@@ -1188,76 +1158,6 @@ async function startApp() {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 app.get('/api/rooms', authenticateToken, (req,res) => {
 
   const home_id = req.body.home_id;
@@ -1274,84 +1174,6 @@ app.get('/api/rooms', authenticateToken, (req,res) => {
 
 });
 
-
-
-app.get('/api/users', authenticateToken, (req,res) => {
-
-  const {id_domu} = req.body;
-
-  conn.query(`SELECT * FROM users where id_domu = ${id_domu}`, function (err,results,fields){
-    
-    //dokonczyc
-
-  });
-});
-
-
 mongoose.connect('mongodb://localhost:27017/home_automation')
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
-
-
-
-// app.get('/api/getdata', (req, res) => {
-//   res.json({ message: 'Dane z serwera' });
-// });
-
-// app.get('/api/sendtext', (req, res) => {
-//     const receivedText = req.body.text; 
-//     console.log('Odebrany tekst:', receivedText);
-//     if(receivedText === "cos"){
-//       res.json({ message: 'Test dziala'});
-//     }
-//     else{
-//       res.json({ message: 'Tekst został odebrany przez serwer. Rozny od "cos"' });
-//     }
-// });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//Kod pozwalający na odebranie danych z serwera
-
-// const fetchData = async () => {
-//     try {
-//       const response = await fetch('http://127.0.0.1:4000/api/getdata'); // Dodaj protokół HTTP
-//       const jsonData = await response.json();
-//       console.log(jsonData.message);
-//     } catch (error) {
-//       console.error('Błąd:', error);
-//     }
-//   };
-
-
-
-// const sendData = async (textToSend) => {
-//     try {
-//       const response = await fetch('http://192.168.100.6:4000/api/sendtext', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json'
-//         },
-//         body: JSON.stringify({ text : textToSend }) // Tekst do wysłania w formacie JSON
-//       });
-      
-//       const responseData = await response.json(); // Odpowiedź serwera
-//       console.log('Odpowiedź serwera:', responseData);
-//     } catch (error) {
-//       console.error('Błąd:', error); console.log({text:textToSend});
-//     }
-// };
