@@ -432,7 +432,7 @@ app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
               try {
                   const mongoResponse = await fetch(`http://localhost:4000/api/mongodb/device-protocol/${device.device_id}`, {
                       headers: {
-                          'Authorization': 'Bearer ' + req.headers.authorization
+                          'Authorization': req.headers.authorization
                       }
                   });
 
@@ -443,6 +443,7 @@ app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
                           protocolData: protocolData
                       };
                   }
+
               } catch (error) {
                   console.error('Error fetching MongoDB data:', error);
               }
@@ -474,6 +475,47 @@ app.post('/api/home/get-devices', authenticateToken, async (req,res) => {
           devices: [],
           categories: []
       });
+  }
+});
+
+app.get('/api/home/statistics/:home_id', authenticateToken, async (req, res) => {
+  const home_id = req.params.home_id;
+
+  try {
+
+      const mysqlData = await new Promise((resolve, reject) => {
+          conn.query(
+              `SELECT 
+                  (SELECT COUNT(*) FROM users_home WHERE home_id = ?) as users_count,
+                  (SELECT COUNT(*) FROM devices WHERE home_id = ?) as devices_count`,
+              [home_id, home_id],
+              (err, results) => {
+                  if (err) reject(err);
+                  resolve(results[0]);
+              }
+          );
+      });
+
+      const mongoResponse = await fetch(`http://localhost:4000/api/mongodb/scenarios/${home_id}`, {
+          headers: {
+              'Authorization': req.headers.authorization
+          }
+      });
+      
+      const scenarios = await mongoResponse.json();
+      const scenariosCount = scenarios.length;
+
+      const statistics = {
+          users: mysqlData.users_count,
+          devices: mysqlData.devices_count,
+          scenarios: scenariosCount
+      };
+
+      res.status(200).json(statistics);
+
+  } catch (error) {
+      console.error('Error fetching statistics:', error);
+      res.status(500).json({ error: error.message });
   }
 });
 
@@ -592,6 +634,46 @@ process.on('SIGINT', async () => {
   }
 });
 
+app.delete('/api/devices/:device_id', authenticateToken, async (req, res) => {
+  const device_id = req.params.device_id;
+  
+  try {
+      await new Promise((resolve, reject) => {
+          conn.query('DELETE FROM devices WHERE device_id = ?', [device_id], (err, result) => {
+              if (err) reject(err);
+              resolve(result);
+          });
+      });
+
+      res.status(200).json({ message: 'Device deleted successfully' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Failed to delete device' });
+  }
+});
+
+app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
+  const device_id = req.params.device_id;
+  const { label, command_on, command_off } = req.body;
+  
+  try {
+      await new Promise((resolve, reject) => {
+          conn.query(
+              'UPDATE devices SET label = ?, command_on = ?, command_off = ? WHERE device_id = ?',
+              [label, command_on, command_off, device_id],
+              (err, result) => {
+                  if (err) reject(err);
+                  resolve(result);
+              }
+          );
+      });
+
+      res.status(200).json({ message: 'Device updated successfully' });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Failed to update device' });
+  }
+});
 
 app.post('/api/add-new-devices', authenticateToken, async (req,res) => {
  console.log('Dodawanie urzadzen');
@@ -611,13 +693,14 @@ app.post('/api/add-new-devices', authenticateToken, async (req,res) => {
  try {
      await Promise.all(devices.map(async (el) => {
          try {
-             let room_id = rooms.indexOf(el.selectedRoom);
+
+             console.log("roomId "+el.room_id);
 
              const deviceId = await new Promise((resolve, reject) => {
                  const query = `INSERT INTO devices
                      (device_id, name, home_id, room_id, label, command_on, command_off, status, category)
                      VALUES
-                     ('', '${el.name}', ${home_id}, ${room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}', '${el.category}')`;
+                     ('', '${el.name}', ${home_id}, ${el.room_id}, '${el.label}', '${el.command_on}', '${el.command_off}', '${el.status}', '${el.category}')`;
                  
                  conn.query(query, (error, results) => {
                      if (error) {
@@ -634,9 +717,9 @@ app.post('/api/add-new-devices', authenticateToken, async (req,res) => {
                home_id: home_id,
                user_id: user_id,
                action: "added",
-               device_name: el.name,
+               device_name: el.label,
                device_status: el.status,
-               room: el.selectedRoom,
+               room: el.room_id,
                category: el.category,
                timestamp: new Date().toISOString()
              };

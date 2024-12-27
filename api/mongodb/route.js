@@ -13,17 +13,17 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/camera', async (req, res) => {
+
     try {
         console.log("Received camera data:", req.body);
         const { home_id, camera_url } = req.body;
-        
-        // Używamy findOneAndUpdate z upsert: true
+
         const camera = await Camera.findOneAndUpdate(
-            { home_id }, // warunek wyszukiwania
-            { camera_url }, // dane do aktualizacji
+            { home_id }, 
+            { camera_url }, 
             { 
-                upsert: true, // tworzy nowy dokument jeśli nie istnieje
-                new: true // zwraca zaktualizowany dokument
+                upsert: true, 
+                new: true 
             }
         );
         
@@ -35,25 +35,23 @@ router.post('/camera', async (req, res) => {
     }
 });
 
-// Endpoint do pobierania kamery (GET)
 router.get('/camera/:home_id', async (req, res) => {
     try {
-        console.log("Looking for camera for home_id:", req.params.home_id); // dodaj log
+        console.log("Looking for camera for home_id:", req.params.home_id); 
         const camera = await Camera.findOne({ home_id: req.params.home_id });
         if (!camera) {
             return res.status(404).json({ error: 'Camera not found' });
         }
         res.status(200).json(camera);
     } catch (error) {
-        console.error("Error fetching camera:", error); // dodaj log
+        console.error("Error fetching camera:", error); 
         res.status(500).json({ error: error.message });
     }
 });
 
-// Endpoint do aktualizacji kamery (PUT)
 router.put('/camera/:home_id', async (req, res) => {
     try {
-        console.log("Updating camera for home_id:", req.params.home_id, "with data:", req.body); // dodaj log
+        console.log("Updating camera for home_id:", req.params.home_id, "with data:", req.body);
         const { camera_url } = req.body;
         const updatedCamera = await Camera.findOneAndUpdate(
             { home_id: req.params.home_id },
@@ -65,7 +63,7 @@ router.put('/camera/:home_id', async (req, res) => {
         }
         res.status(200).json(updatedCamera);
     } catch (error) {
-        console.error("Error updating camera:", error); // dodaj log
+        console.error("Error updating camera:", error);
         res.status(400).json({ error: error.message });
     }
 });
@@ -78,6 +76,22 @@ router.delete('/camera/:home_id', async (req, res) => {
         }
         res.status(200).json({ message: 'Camera deleted successfully' });
     } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+router.get('/statistics/:home_id', async (req, res) => {
+    const homeId = req.params.home_id;
+    
+    try {
+        const scenariosCount = await Scenario.countDocuments({ home_id: homeId });
+        
+        res.status(200).json({
+            scenarios: scenariosCount
+        });
+    } catch (error) {
+        console.error('Error fetching statistics:', error);
         res.status(500).json({ error: error.message });
     }
 });
