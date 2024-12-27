@@ -197,6 +197,101 @@ router.post('/alarms/history', async (req, res) => {
     }
 });
 
+router.delete('/delete-scenario/:scenario_id', async (req, res) => {
+    try {
+        const scenario = await Scenario.findById(req.params.scenario_id);
+        
+        if (!scenario) {
+            return res.status(404).json({ error: 'Scenario not found' });
+        }
+
+        const scenarioHistory = new ScenarioHistory({
+            home_id: scenario.home_id,
+            user_id: req.body.user_id,
+            action: 'removed',
+            scenario_name: scenario.name,
+            devices: scenario.devices.map(device => ({
+                device_id: device.device_id,
+                name: device.name,
+                category: device.category
+            })),
+            scenarioTurnOn: scenario.scenarioTurnOn,
+            scenarioTurnOff: scenario.scenarioTurnOff,
+            timestamp: new Date()
+        });
+
+        await scenarioHistory.save();
+        await scenario.deleteOne();
+
+        res.status(200).json({ message: 'Scenario deleted successfully' });
+
+    } catch (error) {
+        console.error('Error deleting scenario:', error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+router.put('/edit-scenario/:scenario_id', async (req, res) => {
+    try {
+        const { name, scenarioTurnOn, scenarioTurnOff, user_id } = req.body;
+
+        const scenario = await Scenario.findById(req.params.scenario_id);
+        
+        if (!scenario) {
+            return res.status(404).json({ error: 'Scenario not found' });
+        }
+
+        const updateData = {};
+        if (name) updateData.name = name;
+        if (scenarioTurnOn !== undefined) updateData.scenarioTurnOn = scenarioTurnOn;
+        if (scenarioTurnOff !== undefined) updateData.scenarioTurnOff = scenarioTurnOff;
+
+        const updatedScenario = await Scenario.findByIdAndUpdate(
+            req.params.scenario_id,
+            { $set: updateData },
+            { new: true }
+        );
+
+        const scenarioHistory = new ScenarioHistory({
+            home_id: scenario.home_id,
+            user_id,
+            action: 'edited',
+            scenario_name: name || scenario.name,
+            devices: scenario.devices.map(device => ({
+                device_id: device.device_id,
+                name: device.name,
+                category: device.category
+            })),
+            scenarioTurnOn: updateData.scenarioTurnOn !== undefined ? updateData.scenarioTurnOn : scenario.scenarioTurnOn,
+            scenarioTurnOff: updateData.scenarioTurnOff !== undefined ? updateData.scenarioTurnOff : scenario.scenarioTurnOff,
+            changes: {
+                name: name !== undefined && name !== scenario.name ? {
+                    old: scenario.name,
+                    new: name
+                } : null,
+                scenarioTurnOn: scenarioTurnOn !== undefined && scenarioTurnOn !== scenario.scenarioTurnOn ? {
+                    old: scenario.scenarioTurnOn,
+                    new: scenarioTurnOn
+                } : null,
+                scenarioTurnOff: scenarioTurnOff !== undefined && scenarioTurnOff !== scenario.scenarioTurnOff ? {
+                    old: scenario.scenarioTurnOff,
+                    new: scenarioTurnOff
+                } : null
+            },
+            timestamp: new Date()
+        });
+
+        await scenarioHistory.save();
+
+        res.status(200).json(updatedScenario);
+
+    } catch (error) {
+        console.error('Error updating scenario:', error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+
 router.get('/scenarios/:home_id', async (req, res) => {
 
     const homeId = req.params.home_id; 
