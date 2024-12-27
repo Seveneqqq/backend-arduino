@@ -5,5 +5,10 @@ module.exports = {
     collectCoverageFrom: [
         'api/**/*.js',
         '!**/node_modules/**'
-    ]
+    ],
+    verbose: true,
+    forceExit: true,
+    clearMocks: true,
+    resetMocks: true,
+    restoreMocks: true
 };

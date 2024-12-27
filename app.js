@@ -1177,3 +1177,7 @@ app.get('/api/rooms', authenticateToken, (req,res) => {
 mongoose.connect('mongodb://localhost:27017/home_automation')
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
+
+
+
+module.exports = app;

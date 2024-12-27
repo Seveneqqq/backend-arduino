@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
+    "test": "jest --detectOpenHandles",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "start": "nodemon app.js"
@@ -28,6 +28,7 @@
   "devDependencies": {
     "jest": "^29.7.0",
     "mongodb-memory-server": "^10.1.2",
+    "socket.io-client": "^4.8.1",
     "supertest": "^7.0.0"
   }
 }
