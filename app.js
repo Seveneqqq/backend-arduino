@@ -614,14 +614,45 @@ process.on('SIGINT', async () => {
 });
 
 app.delete('/api/devices/:device_id', authenticateToken, async (req, res) => {
+
   const device_id = req.params.device_id;
-  
+  const label = req.body.label;
+  const room = req.body.room_id;
+
   try {
+      
+      const deviceInfo = await new Promise((resolve, reject) => {
+          conn.query('SELECT name, room_id, category, status, home_id FROM devices WHERE device_id = ?', 
+          [device_id], 
+          (err, result) => {
+              if (err) reject(err);
+              resolve(result[0]);
+          });
+      });
+
       await new Promise((resolve, reject) => {
           conn.query('DELETE FROM devices WHERE device_id = ?', [device_id], (err, result) => {
               if (err) reject(err);
               resolve(result);
           });
+      });
+
+      await fetch('http://localhost:4000/api/mongodb/devices/history', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': req.headers.authorization
+          },
+          body: JSON.stringify({
+              home_id: deviceInfo.home_id,
+              user_id: req.user.id,
+              action: 'removed',
+              device_name: label,
+              device_status: deviceInfo.status,
+              room: room,
+              category: deviceInfo.category,
+              timestamp: new Date()
+          })
       });
 
       res.status(200).json({ message: 'Device deleted successfully' });
@@ -636,6 +667,15 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
   const { label, command_on, command_off } = req.body;
   
   try {
+      const deviceInfo = await new Promise((resolve, reject) => {
+          conn.query('SELECT name, room_id, category, status, home_id FROM devices WHERE device_id = ?', 
+          [device_id], 
+          (err, result) => {
+              if (err) reject(err);
+              resolve(result[0]);
+          });
+      });
+
       await new Promise((resolve, reject) => {
           conn.query(
               'UPDATE devices SET label = ?, command_on = ?, command_off = ? WHERE device_id = ?',
@@ -645,6 +685,24 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
                   resolve(result);
               }
           );
+      });
+
+      await fetch('http://localhost:4000/api/mongodb/devices/history', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': req.headers.authorization
+          },
+          body: JSON.stringify({
+              home_id: deviceInfo.home_id,
+              user_id: req.user.id,
+              action: 'edited',
+              device_name: label,
+              device_status: deviceInfo.status,
+              room: deviceInfo.room_id,
+              category: deviceInfo.category,
+              timestamp: new Date()
+          })
       });
 
       res.status(200).json({ message: 'Device updated successfully' });

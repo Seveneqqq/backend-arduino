@@ -145,7 +145,7 @@ const deviceHistorySchema = new mongoose.Schema({
     },
     action: {
         type: String,
-        enum: ['added', 'removed'],
+        enum: ['added', 'removed', 'edited'],
         required: true
     },
     device_name: {
