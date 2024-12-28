@@ -1104,6 +1104,73 @@ app.post('/api/automation/toggle', authenticateToken, async (req, res) => {
   }
 });
 
+app.delete('/api/home/:home_id', authenticateToken, async (req, res) => {
+  const home_id = req.params.home_id;
+  const user_id = req.user.id;
+
+  try {
+      const checkOwnerQuery = `
+          SELECT owner_id 
+          FROM home 
+          WHERE home_id = ?`;
+
+      const ownerResult = await new Promise((resolve, reject) => {
+          conn.query(checkOwnerQuery, [home_id], (err, result) => {
+              if (err) reject(err);
+              resolve(result);
+          });
+      });
+
+      if (ownerResult.length === 0) {
+          return res.status(404).json({ error: 'Home not found' });
+      }
+
+      if (ownerResult[0].owner_id !== user_id) {
+          return res.status(403).json({ error: 'Only owner can delete home' });
+      }
+
+      await Promise.all([
+
+          new Promise((resolve, reject) => {
+              conn.query('DELETE FROM devices WHERE home_id = ?', [home_id], (err) => {
+                  if (err) reject(err);
+                  resolve();
+              });
+          }),
+          new Promise((resolve, reject) => {
+              conn.query('DELETE FROM users_home WHERE home_id = ?', [home_id], (err) => {
+                  if (err) reject(err);
+                  resolve();
+              });
+          }),
+          new Promise((resolve, reject) => {
+              conn.query('DELETE FROM tasks WHERE home_id = ?', [home_id], (err) => {
+                  if (err) reject(err);
+                  resolve();
+              });
+          })
+      ]);
+
+      await new Promise((resolve, reject) => {
+          conn.query('DELETE FROM home WHERE home_id = ?', [home_id], (err) => {
+              if (err) reject(err);
+              resolve();
+          });
+      });
+
+      res.status(200).json({ 
+          success: true,
+          message: 'Home and all related data deleted successfully' 
+      });
+
+  } catch (error) {
+      console.error('Error deleting home:', error);
+      res.status(500).json({ 
+          success: false,
+          error: 'Failed to delete home' 
+      });
+  }
+});
 
 app.post('/api/account/leave-home', authenticateToken, async (req, res) => {
 
