@@ -8,6 +8,7 @@ const SerialPort = require('serialport');
 const mongoDatabaseRoutes = require('./api/mongodb/route');
 const assistantRoutes = require('./api/assistant/route');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 app.use(cors({
@@ -123,100 +124,121 @@ app.use((req, res, next) => {
 app.use('/api/mongodb', authenticateToken, mongoDatabaseRoutes); 
 app.use('/api/assistant', authenticateToken, assistantRoutes); 
 
-app.post('/api/login', (req, res) => {
-
-  const { login,password } = req.body;
-
-  try {
+app.post('/api/login', async (req, res) => {
+    const { login, password } = req.body;
     
-    conn.query(`select * from users where (login = '${login}' or email = '${login}') and password = '${password}'`, function(err,result,fields){
-      
-      if(result.length == 1){
-        const token = jwt.sign({ id: result[0].id, login: result[0].login }, secretKey, { expiresIn: '1h' });
-        
-        return res.send({ success: `Hello ${login}`, token: token, user: result[0].id});
-      }
-      else{
-        return res.send({ error: 'User does not exist or password is incorrect'});
-      }
-    });
-  } catch (error) {
-    
-      console.log("Error : " +error);
-      res.send({'error': error});
+    try {
 
-  }
+        conn.query(
+            'SELECT * FROM users WHERE login = ? OR email = ?',
+            [login, login],
+            async function(err, result, fields) {
+                if (err) {
+                    console.log("Error: " + err);
+                    return res.status(500).send({ error: 'Database error' });
+                }
 
+                if (result.length === 0) {
+                    return res.send({ error: 'User does not exist or password is incorrect' });
+                }
+
+                const match = await bcrypt.compare(password, result[0].password);
+                
+                if (match) {
+                    const token = jwt.sign(
+                        { id: result[0].id, login: result[0].login },
+                        secretKey,
+                        { expiresIn: '1h' }
+                    );
+                    return res.send({
+                        success: `Hello ${login}`,
+                        token: token,
+                        user: result[0].id
+                    });
+                } else {
+                    return res.send({ error: 'User does not exist or password is incorrect' });
+                }
+            }
+        );
+    } catch (error) {
+        console.log("Error: " + error);
+        res.send({ 'error': error });
+    }
 });
-  
-app.post('/api/register', (req, res) => {
 
-    const {email,username,password,repeatPassword} = req.body;
-    const invalidCharacters = [",","'","!","&","#",";",":","|"];
+app.post('/api/register', async (req, res) => {
+    const { email, username, password, repeatPassword } = req.body;
+    const invalidCharacters = [",", "'", "!", "&", "#", ";", ":", "|"];
     let emptyFields = false;
     let invalidValues = false;
     let passwordsDoesntMatch = false;
-  
+
     function validate(textToValidate) {
-      
-      let isOk = true;
-  
-      invalidCharacters.forEach(charackter =>{
-          if(textToValidate.includes(charackter)){
-            isOk = false;
-          }
-      });
-      
-      return isOk;
-  
-    }
-    
-    if(email.length == 0 || username.length == 0 || password.length == 0  || repeatPassword.length == 0){
-      emptyFields = true;
-    }
-  
-    if(!validate(email) || !validate(username) || !validate(password) || !validate(repeatPassword)){
-      invalidValues = true;
-    }
-    
-    if(password != repeatPassword){
-      passwordsDoesntMatch = true;
-    }
-    
-    if(emptyFields){
-      return res.send({ error: "Fill in all fields"});
-    }
-    if(invalidValues){
-      return res.send({ error : "Invalid characters" });
-    }
-    if(passwordsDoesntMatch){
-      return res.send({ error: "Passwords do not match"});
-    }
-    
-    try{
-      conn.query("INSERT INTO users (login, email, password) VALUES (?,?,?)", [username,email,password], function(err,result){
-          if (err){
-            if (err.code === 'ER_DUP_ENTRY') {
-              return res.status(409).send({ error: 'Username or email already exists' });
-            } else {
-              console.log("Error: ", err);
-              return res.status(500).send({ error: 'Database error' });
+        let isOk = true;
+        invalidCharacters.forEach(character => {
+            if (textToValidate.includes(character)) {
+                isOk = false;
             }
-          }
-
-        console.log(result);
-
-        const token = jwt.sign({ id: result.insertId, login: email }, secretKey, { expiresIn: '1h' });
-        res.status(200).json({ success: 'Success, user created', token: token, user: result.insertId });
-      });
+        });
+        return isOk;
     }
 
-    catch (error) {
-
-      console.log("Error : " +error);
-      res.send({'error': error});
+    if (email.length == 0 || username.length == 0 || password.length == 0 || repeatPassword.length == 0) {
+        emptyFields = true;
     }
 
+    if (!validate(email) || !validate(username) || !validate(password) || !validate(repeatPassword)) {
+        invalidValues = true;
+    }
+
+    if (password != repeatPassword) {
+        passwordsDoesntMatch = true;
+    }
+
+    if (emptyFields) {
+        return res.send({ error: "Fill in all fields" });
+    }
+    if (invalidValues) {
+        return res.send({ error: "Invalid characters" });
+    }
+    if (passwordsDoesntMatch) {
+        return res.send({ error: "Passwords do not match" });
+    }
+
+    try {
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        conn.query(
+            "INSERT INTO users (login, email, password) VALUES (?,?,?)",
+            [username, email, hashedPassword],
+            function(err, result) {
+                if (err) {
+                    if (err.code === 'ER_DUP_ENTRY') {
+                        return res.status(409).send({ error: 'Username or email already exists' });
+                    } else {
+                        console.log("Error: ", err);
+                        return res.status(500).send({ error: 'Database error' });
+                    }
+                }
+
+                console.log(result);
+                const token = jwt.sign(
+                    { id: result.insertId, login: email },
+                    secretKey,
+                    { expiresIn: '1h' }
+                );
+                res.status(200).json({
+                    success: 'Success, user created',
+                    token: token,
+                    user: result.insertId
+                });
+            }
+        );
+    } catch (error) {
+        console.log("Error: " + error);
+        res.send({ 'error': error });
+    }
 });
 
 app.post('/api/tasks/add', authenticateToken, async (req, res) => {
@@ -614,14 +636,45 @@ process.on('SIGINT', async () => {
 });
 
 app.delete('/api/devices/:device_id', authenticateToken, async (req, res) => {
+
   const device_id = req.params.device_id;
-  
+  const label = req.body.label;
+  const room = req.body.room_id;
+
   try {
+      
+      const deviceInfo = await new Promise((resolve, reject) => {
+          conn.query('SELECT name, room_id, category, status, home_id FROM devices WHERE device_id = ?', 
+          [device_id], 
+          (err, result) => {
+              if (err) reject(err);
+              resolve(result[0]);
+          });
+      });
+
       await new Promise((resolve, reject) => {
           conn.query('DELETE FROM devices WHERE device_id = ?', [device_id], (err, result) => {
               if (err) reject(err);
               resolve(result);
           });
+      });
+
+      await fetch('http://localhost:4000/api/mongodb/devices/history', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': req.headers.authorization
+          },
+          body: JSON.stringify({
+              home_id: deviceInfo.home_id,
+              user_id: req.user.id,
+              action: 'removed',
+              device_name: label,
+              device_status: deviceInfo.status,
+              room: room,
+              category: deviceInfo.category,
+              timestamp: new Date()
+          })
       });
 
       res.status(200).json({ message: 'Device deleted successfully' });
@@ -636,6 +689,15 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
   const { label, command_on, command_off } = req.body;
   
   try {
+      const deviceInfo = await new Promise((resolve, reject) => {
+          conn.query('SELECT name, room_id, category, status, home_id FROM devices WHERE device_id = ?', 
+          [device_id], 
+          (err, result) => {
+              if (err) reject(err);
+              resolve(result[0]);
+          });
+      });
+
       await new Promise((resolve, reject) => {
           conn.query(
               'UPDATE devices SET label = ?, command_on = ?, command_off = ? WHERE device_id = ?',
@@ -645,6 +707,24 @@ app.put('/api/devices/:device_id', authenticateToken, async (req, res) => {
                   resolve(result);
               }
           );
+      });
+
+      await fetch('http://localhost:4000/api/mongodb/devices/history', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': req.headers.authorization
+          },
+          body: JSON.stringify({
+              home_id: deviceInfo.home_id,
+              user_id: req.user.id,
+              action: 'edited',
+              device_name: label,
+              device_status: deviceInfo.status,
+              room: deviceInfo.room_id,
+              category: deviceInfo.category,
+              timestamp: new Date()
+          })
       });
 
       res.status(200).json({ message: 'Device updated successfully' });
@@ -878,59 +958,60 @@ app.get('/api/home/home-info/:home_id', authenticateToken, async (req, res) => {
   }
 });
 
-app.post(`/api/account/change-password`, authenticateToken, async (req, res) => {
-  
-  const user_id = req.user.id;
-  const currentPassword = req.body.currentPassword;
-  const newPassword = req.body.newPassword;
+app.post('/api/account/change-password', authenticateToken, async (req, res) => {  
+    const user_id = req.body.user_id;
+    const currentPassword = req.body.currentPassword;
+    const newPassword = req.body.newPassword;
 
-  try {
+    try {
+        const verifyQuery = `
+            SELECT password 
+            FROM users 
+            WHERE id = ? 
+            LIMIT 1
+        `;
 
-      const verifyQuery = `
-          SELECT password 
-          FROM users 
-          WHERE id = ? 
-          LIMIT 1
-      `;
+        conn.query(verifyQuery, [user_id], async (err, results) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.status(500).json({ error: 'Internal server error' });
+            }
 
-      conn.query(verifyQuery, [user_id], async (err, results) => {
-          if (err) {
-              console.error('Database error:', err);
-              return res.status(500).json({ error: 'Internal server error' });
-          }
+            if (results.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
 
-          if (results.length === 0) {
-              return res.status(404).json({ error: 'User not found' });
-          }
+            const passwordMatch = await bcrypt.compare(currentPassword, results[0].password);
+            if (!passwordMatch) {
+                return res.status(401).json({ error: 'Current password is incorrect' });
+            }
 
-          if (results[0].password !== currentPassword) {
-              return res.status(401).json({ error: 'Current password is incorrect' });
-          }
+            const saltRounds = 10;
+            const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
-          const updateQuery = `
-              UPDATE users 
-              SET password = ? 
-              WHERE id = ?
-          `;
+            const updateQuery = `
+                UPDATE users 
+                SET password = ? 
+                WHERE id = ?
+            `;
 
-          conn.query(updateQuery, [newPassword, user_id], (updateErr, updateResult) => {
-              if (updateErr) {
-                  console.error('Database error:', updateErr);
-                  return res.status(500).json({ error: 'Failed to update password' });
-              }
+            conn.query(updateQuery, [hashedNewPassword, user_id], (updateErr, updateResult) => {
+                if (updateErr) {
+                    console.error('Database error:', updateErr);
+                    return res.status(500).json({ error: 'Failed to update password' });
+                }
 
-              if (updateResult.affectedRows === 0) {
-                  return res.status(404).json({ error: 'User not found' });
-              }
+                if (updateResult.affectedRows === 0) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
 
-              res.status(200).json({ message: 'Password updated successfully' });
-          });
-      });
-
-  } catch (error) {
-      console.error('Server error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-  }
+                res.status(200).json({ message: 'Password updated successfully' });
+            });
+        });
+    } catch (error) {
+        console.error('Server error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 app.get(`/api/account/:user_id`, authenticateToken, async(req,res) => { 
@@ -1046,6 +1127,73 @@ app.post('/api/automation/toggle', authenticateToken, async (req, res) => {
   }
 });
 
+app.delete('/api/home/:home_id', authenticateToken, async (req, res) => {
+  const home_id = req.params.home_id;
+  const user_id = req.user.id;
+
+  try {
+      const checkOwnerQuery = `
+          SELECT owner_id 
+          FROM home 
+          WHERE home_id = ?`;
+
+      const ownerResult = await new Promise((resolve, reject) => {
+          conn.query(checkOwnerQuery, [home_id], (err, result) => {
+              if (err) reject(err);
+              resolve(result);
+          });
+      });
+
+      if (ownerResult.length === 0) {
+          return res.status(404).json({ error: 'Home not found' });
+      }
+
+      if (ownerResult[0].owner_id !== user_id) {
+          return res.status(403).json({ error: 'Only owner can delete home' });
+      }
+
+      await Promise.all([
+
+          new Promise((resolve, reject) => {
+              conn.query('DELETE FROM devices WHERE home_id = ?', [home_id], (err) => {
+                  if (err) reject(err);
+                  resolve();
+              });
+          }),
+          new Promise((resolve, reject) => {
+              conn.query('DELETE FROM users_home WHERE home_id = ?', [home_id], (err) => {
+                  if (err) reject(err);
+                  resolve();
+              });
+          }),
+          new Promise((resolve, reject) => {
+              conn.query('DELETE FROM tasks WHERE home_id = ?', [home_id], (err) => {
+                  if (err) reject(err);
+                  resolve();
+              });
+          })
+      ]);
+
+      await new Promise((resolve, reject) => {
+          conn.query('DELETE FROM home WHERE home_id = ?', [home_id], (err) => {
+              if (err) reject(err);
+              resolve();
+          });
+      });
+
+      res.status(200).json({ 
+          success: true,
+          message: 'Home and all related data deleted successfully' 
+      });
+
+  } catch (error) {
+      console.error('Error deleting home:', error);
+      res.status(500).json({ 
+          success: false,
+          error: 'Failed to delete home' 
+      });
+  }
+});
 
 app.post('/api/account/leave-home', authenticateToken, async (req, res) => {
 
