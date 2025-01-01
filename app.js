@@ -172,6 +172,7 @@ app.post('/api/register', async (req, res) => {
     let emptyFields = false;
     let invalidValues = false;
     let passwordsDoesntMatch = false;
+    let invalidEmail = false;
 
     function validate(textToValidate) {
         let isOk = true;
@@ -183,12 +184,21 @@ app.post('/api/register', async (req, res) => {
         return isOk;
     }
 
+    function validateEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
     if (email.length == 0 || username.length == 0 || password.length == 0 || repeatPassword.length == 0) {
         emptyFields = true;
     }
 
     if (!validate(email) || !validate(username) || !validate(password) || !validate(repeatPassword)) {
         invalidValues = true;
+    }
+
+    if (!validateEmail(email)) {
+        invalidEmail = true;
     }
 
     if (password != repeatPassword) {
@@ -200,6 +210,9 @@ app.post('/api/register', async (req, res) => {
     }
     if (invalidValues) {
         return res.send({ error: "Invalid characters" });
+    }
+    if (invalidEmail) {
+        return res.send({ error: "Invalid email format" });
     }
     if (passwordsDoesntMatch) {
         return res.send({ error: "Passwords do not match" });
@@ -1255,55 +1268,55 @@ app.get('/api/home/app-start', async (req, res) => {
   }
 });
 
-async function startApp() {
+// async function startApp() {
   
-  if (serialPort) {
-      await closeSerialPort();
-  }
+//   if (serialPort) {
+//       await closeSerialPort();
+//   }
 
-  serialPort = new SerialPort.SerialPort({
-      path: 'COM3',
-      baudRate: 9600,
-      dataBits: 8,
-      parity: 'none',
-      stopBits: 1,
-      flowControl: false
-  });
+//   serialPort = new SerialPort.SerialPort({
+//       path: 'COM3',
+//       baudRate: 9600,
+//       dataBits: 8,
+//       parity: 'none',
+//       stopBits: 1,
+//       flowControl: false
+//   });
 
-  const jsonData = { instruction: "start-app" };
+//   const jsonData = { instruction: "start-app" };
   
-  serialPort.write(JSON.stringify(jsonData) + '\n', (err) => {
-      if (err) {
-          console.error('Error on write: ', err.message);
-          throw err;
-      }
-      console.log('Arduino start');
-  });
+//   serialPort.write(JSON.stringify(jsonData) + '\n', (err) => {
+//       if (err) {
+//           console.error('Error on write: ', err.message);
+//           throw err;
+//       }
+//       console.log('Arduino start');
+//   });
 
-  let buffer = '';
+//   let buffer = '';
   
-  serialPort.on('data', (data) => {
-      buffer += data.toString();
+//   serialPort.on('data', (data) => {
+//       buffer += data.toString();
       
-      let lines = buffer.split('\n');
+//       let lines = buffer.split('\n');
       
-      for (let i = 0; i < lines.length - 1; i++) {
-          try {
-              const json = JSON.parse(lines[i]);
-              console.log('Received data:', json);
-              io.emit('sensorData', json);
-          } catch (err) {
-              console.error('Error parsing JSON: ', err.message);
-          }
-      }
+//       for (let i = 0; i < lines.length - 1; i++) {
+//           try {
+//               const json = JSON.parse(lines[i]);
+//               console.log('Received data:', json);
+//               io.emit('sensorData', json);
+//           } catch (err) {
+//               console.error('Error parsing JSON: ', err.message);
+//           }
+//       }
       
-      buffer = lines[lines.length - 1];
-  });
+//       buffer = lines[lines.length - 1];
+//   });
 
-  serialPort.on('error', (error) => {
-      console.error('Serial port error:', error);
-  });
-}
+//   serialPort.on('error', (error) => {
+//       console.error('Serial port error:', error);
+//   });
+// }
 
 
 app.get('/api/rooms', authenticateToken, (req,res) => {
