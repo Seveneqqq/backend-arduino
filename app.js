@@ -760,6 +760,8 @@ app.post('/api/add-new-devices', authenticateToken, async (req,res) => {
      'Childrens room', 
      'Garage',
      'Office',
+     'Bedroom',
+     'Hall'
  ];
 
  try {
@@ -1122,7 +1124,8 @@ app.post('/api/automation/toggle', authenticateToken, async (req, res) => {
               name: device.name,
               actions: {
                   state: device.actions.state ? 1 : 0,
-                  brightness: device.actions.brightness || 100
+                  brightness: device.actions.brightness || 100,
+                  temperature: device.actions.temperature || 24
               }
           }));
 
