@@ -182,8 +182,8 @@ The backend is configured to work with a frontend running on `http://localhost:3
 
 ### AI Assistant
 
-- `POST /api/assistant/ask` - Send query to AI assistant
-- `POST /api/assistant/ask-with-image` - Send query with image to AI
+- `POST /api/assistant/chat` - Send query to AI assistant
+
 
 ## 🔌 Arduino Integration
 
