@@ -218,7 +218,7 @@ The application automatically detects and connects to Arduino devices. Ensure yo
 **Paweł Boroń**
 - Email: pawel.boron01@interia.pl
 - Project: Bachelor's Engineering Thesis - Smart Home System
-- 
+  
 ## 🐛 Known Issues
 
 - Tests require internet connection for MongoDB Memory Server
