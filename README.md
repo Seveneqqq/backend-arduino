@@ -213,10 +213,12 @@ The application automatically detects and connects to Arduino devices. Ensure yo
 2. Running compatible firmware
 3. Using the correct baud rate (default: 9600)
 
-## 👨‍💻 Author
+## 👤 Author
 
-**Seveneqqq**
-
+**Paweł Boroń**
+- Email: pawel.boron01@interia.pl
+- Project: Bachelor's Engineering Thesis - Smart Home System
+- 
 ## 🐛 Known Issues
 
 - Tests require internet connection for MongoDB Memory Server
