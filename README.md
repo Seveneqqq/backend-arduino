@@ -153,37 +153,85 @@ The backend is configured to work with a frontend running on `http://localhost:3
 
 ## 📡 API Endpoints
 
-### Authentication
+### 🔐 Authentication
+```http
+POST /api/login          # User login
+POST /api/register       # User registration
+```
 
-- `POST /api/login` - User login
-- `POST /api/register` - User registration
+### 🏠 Home Management (Requires Authentication)
+```http
+POST /api/new-home               # Create new home
+POST /api/join-to-home          # Join home with invite code  
+POST /api/user-homes            # Get user's homes
+GET  /api/home/home-info/:home_id # Get home details
+POST /api/home/change-name      # Change home name
+DELETE /api/home/:home_id       # Delete home
+POST /api/account/leave-home    # Leave home
+```
 
-### Device Management (Requires Authentication)
+### 📱 Device Management (Requires Authentication)
+```http
+GET    /api/home/get-devices    # Get all devices for home
+POST   /api/find-devices        # Discover Arduino devices
+POST   /api/add-new-devices     # Add multiple devices
+PUT    /api/devices/:device_id  # Update device
+DELETE /api/devices/:device_id  # Remove device
+POST   /api/home/do            # Execute device command
+```
 
-- `GET /api/mongodb/` - Get all scenarios
-- `POST /api/mongodb/scenario` - Create new scenario
-- `DELETE /api/mongodb/scenario/:id` - Delete scenario
+### 🎬 Scenario & Automation (Requires Authentication)
+```http
+GET    /api/mongodb/            # Get all scenarios
+POST   /api/mongodb/scenario    # Create new scenario  
+DELETE /api/mongodb/scenario/:id # Delete scenario
+POST   /api/automation/toggle   # Toggle automation scenario
+```
 
-### Camera Management
+### 📷 Camera Management (Requires Authentication)
+```http
+POST /api/mongodb/camera          # Add/update camera configuration
+GET  /api/mongodb/camera/:home_id # Get camera by home ID
+```
 
-- `POST /api/mongodb/camera` - Add/update camera configuration
-- `GET /api/mongodb/camera/:home_id` - Get camera by home ID
+### ⚠️ Alarm System (Requires Authentication)
+```http
+POST /api/mongodb/alarm               # Configure alarm settings
+GET  /api/mongodb/alarm/:home_id      # Get alarm configuration  
+GET  /api/mongodb/alarm-history/:home_id # Get alarm history
+```
 
-### Alarm System
+### 📊 Analytics & History (Requires Authentication)
+```http
+POST /api/mongodb/device-history     # Add device history entry
+GET  /api/mongodb/device-history/:home_id # Get device history
+GET  /api/home/statistics/:home_id   # Get home statistics
+```
 
-- `POST /api/mongodb/alarm` - Configure alarm settings
-- `GET /api/mongodb/alarm/:home_id` - Get alarm configuration
-- `GET /api/mongodb/alarm-history/:home_id` - Get alarm history
+### ✅ Task Management (Requires Authentication)
+```http
+POST   /api/tasks/add            # Add new task
+GET    /api/tasks/:home_id       # Get tasks for home
+POST   /api/tasks/:task_id/complete # Mark task as completed
+DELETE /api/tasks/:task_id       # Delete task
+```
 
-### Device History
+### 👤 Account Management (Requires Authentication)
+```http
+GET  /api/account/:user_id       # Get user account details
+POST /api/account/change-password # Change user password
+```
 
-- `POST /api/mongodb/device-history` - Add device history entry
-- `GET /api/mongodb/device-history/:home_id` - Get device history
+### 🧠 AI Assistant (Requires Authentication)
+```http
+POST /api/assistant/chat         # Send query to AI assistant
+```
 
-### AI Assistant
-
-- `POST /api/assistant/chat` - Send query to AI assistant
-
+### 🔧 System Control
+```http
+GET /api/home/app-start          # Start sensor reading
+GET /api/devices-list            # Get available device types
+```
 ## 🔌 Arduino Integration
 
 ### Serial Communication
