@@ -8,26 +8,81 @@ Check out this project in action: **[YouTube Demo](https://www.youtube.com/short
 
 ## ✨ Features
 
-- **🔌 Arduino Serial Communication**: Direct communication with Arduino devices via serial port
-- **🔄 Real-time Updates**: WebSocket integration using Socket.IO for instant device state changes
-- **🧠 AI Assistant**: Google Gemini AI integration for smart home queries and commands
-- **📊 Device Management**: Complete CRUD operations for devices, scenarios, and configurations
-- **🔐 Authentication**: Secure JWT-based authentication system
-- **📷 Camera Integration**: Camera URL management and streaming support
-- **⚠️ Alarm System**: Configurable alarm settings with history tracking
-- **📈 History Tracking**: Comprehensive logging of device states and user actions
-- **🏠 Multi-Home Support**: Manage multiple homes with isolated configurations
+### 🔌 Hardware Integration
+- **Arduino Serial Communication** - Direct communication with Arduino devices via serial port
+- **Real-time Device Control** - Instant command execution and status updates
+- **Multi-Protocol Support** - WiFi, Zigbee, Bluetooth, Z-Wave, and MQTT protocols
+
+### 🔄 Real-time Communication
+- **WebSocket Integration** - Socket.IO for instant device state synchronization
+- **Live Sensor Data** - Real-time environmental monitoring and alerts
+- **Instant Notifications** - Immediate status updates across all connected clients
+
+### 🧠 AI & Intelligence
+- **Google Gemini AI Integration** - Smart home queries and natural language commands
+- **Automated Scenarios** - Intelligent automation based on conditions and triggers
+- **Predictive Analytics** - Usage patterns and optimization suggestions
+
+### 📊 Device & Home Management
+- **Complete Device CRUD** - Add, configure, monitor, and remove smart devices
+- **Multi-Home Support** - Manage multiple properties with isolated configurations
+- **Room Organization** - Organize devices by rooms and categories
+- **Device History** - Comprehensive logging of all device interactions
+
+### 🔐 Security & Authentication
+- **JWT-based Authentication** - Secure user sessions with token-based auth
+- **Role-based Access** - Owner and member permissions for shared homes
+- **Session Management** - Automatic timeout and security monitoring
+- **Password Encryption** - bcrypt hashing for secure credential storage
+
+### 📷 Monitoring & Surveillance
+- **Camera Integration** - Live video streaming and camera management
+- **Security Alerts** - Configurable alarm system with history tracking
+- **Activity Logging** - Detailed audit trail of all system activities
+
+### 🏗️ Advanced Features
+- **Task Management** - Scheduled operations and todo lists
+- **Home Sharing** - Invite users to join homes with invite codes
+- **Statistics Dashboard** - Usage analytics and system performance metrics
+- **RESTful API** - Complete API for frontend and third-party integrations
 
 ## 🛠️ Technologies Used
 
-- **Backend Framework**: Express.js
-- **Database**: MongoDB (via Mongoose) + MySQL
-- **Real-time Communication**: Socket.IO
-- **Serial Communication**: SerialPort library
-- **AI Integration**: Google Generative AI (Gemini)
-- **Authentication**: JSON Web Tokens (JWT)
-- **Password Security**: bcrypt
-- **Testing**: Jest with MongoDB Memory Server
+### 🚀 Backend Framework & Runtime
+- **Node.js** (v14+) - JavaScript runtime environment
+- **Express.js** (v4.18.3) - Fast, minimalist web framework
+- **Nodemon** (v3.1.4) - Development auto-restart utility
+
+### 💾 Databases & Storage
+- **MongoDB** - Document database via Mongoose ODM (v8.8.1)
+- **MySQL** (v2.18.1) - Relational database for user management
+- **File System** - Local storage for uploads and configurations
+
+### 🔄 Real-time & Communication
+- **Socket.IO** (v4.8.1) - WebSocket library for real-time communication
+- **SerialPort** (v12.0.0) - Hardware communication with Arduino devices
+- **CORS** (v2.8.5) - Cross-origin resource sharing
+
+### 🧠 AI & Intelligence
+- **Google Generative AI** (v0.21.0) - Gemini AI integration for smart queries
+- **Natural Language Processing** - Command interpretation and responses
+
+### 🔐 Security & Authentication
+- **JSON Web Tokens** (v9.0.2) - Secure authentication tokens
+- **bcrypt** (v5.1.1) - Password hashing and encryption
+- **Environment Variables** - Secure configuration via dotenv (v16.4.5)
+
+### 🧪 Testing & Development
+- **Jest** (v29.7.0) - JavaScript testing framework
+- **MongoDB Memory Server** (v10.1.2) - In-memory database for testing
+- **Supertest** (v7.0.0) - HTTP assertion testing
+- **Socket.IO Client** (v4.8.1) - WebSocket testing utilities
+
+### 📡 API & Integration
+- **Body Parser** (v1.20.2) - Request body parsing middleware
+- **RESTful Architecture** - Clean API design patterns
+- **WebSocket Events** - Real-time bidirectional communication
+
 
 ## 📦 Installation
 
